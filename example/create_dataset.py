@@ -52,7 +52,7 @@ class NYUv2(Dataset):
 
         if self.mode == 'train':
             data_len = len(fnmatch.filter(os.listdir(self.root + '/train/image'), '*.npy'))
-            self.index_list = list(range(data_len))[:100]
+            self.index_list = list(range(data_len))
             self.data_path = self.root + '/train'
         else:
             data_len = len(fnmatch.filter(os.listdir(self.root + '/val/image'), '*.npy'))

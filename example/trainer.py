@@ -8,6 +8,8 @@ from LibMTL.utils import count_parameters
 import LibMTL.weighting as weighting_method
 import LibMTL.architecture as architecture_method
 
+from logger import Logger, WandbLogger
+
 
 class Trainer(nn.Module):
     def __init__(self, task_dict, weighting, architecture, encoder_class, decoders,
@@ -25,8 +27,7 @@ class Trainer(nn.Module):
         self.scheduler_param = scheduler_param
         self.save_path = save_path
         self.load_path = load_path
-        self.logging = logging
-        self.print_interval = print_interval
+        self.logger = WandbLogger(print_interval) if logging else Logger(print_interval)
 
         self._prepare_model(weighting, architecture, encoder_class, decoders)
         self._prepare_optimizer(optim_param, scheduler_param)
@@ -104,6 +105,7 @@ class Trainer(nn.Module):
             train_losses = torch.zeros(self.task_num).to(self.device)
             for tn, task in enumerate(self.task_name):
                 train_losses[tn] = self.meter.losses[task]._update_loss(preds[task], gts[task])
+                self.logger.log({f"{task}_loss": train_losses[tn]})
         else:
             train_losses = self.meter.losses[task_name]._update_loss(preds, gts)
         return train_losses
@@ -152,6 +154,8 @@ class Trainer(nn.Module):
                     train_preds = self.process_preds(train_preds)
                     train_losses = self._compute_loss(train_preds, train_gts)
                     self.meter.update(train_preds, train_gts)
+                    self.logger.print(f"{batch_index + 1}/{train_batch}")
+                    self.logger.push({f"batch_index": batch_index})
                 else:
                     train_losses = torch.zeros(self.task_num).to(self.device)
                     for tn, task in enumerate(self.task_name):
@@ -211,6 +215,7 @@ class Trainer(nn.Module):
                     test_preds = self.process_preds(test_preds)
                     test_losses = self._compute_loss(test_preds, test_gts)
                     self.meter.update(test_preds, test_gts)
+                    self.logger.print(f"{batch_index + 1}/{test_batch}")
             else:
                 for tn, task in enumerate(self.task_name):
                     for batch_index in range(test_batch[tn]):

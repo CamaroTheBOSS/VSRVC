@@ -1,3 +1,5 @@
+import wandb
+
 from example.trainer import Trainer
 from utils import *
 from aspp import DeepLabHead
@@ -61,7 +63,9 @@ def main(params):
     num_out_channels = {'segmentation': 13, 'depth': 1, 'normal': 3}
     decoders = nn.ModuleDict({task: DeepLabHead(2048,
                                                 num_out_channels[task]) for task in list(task_dict.keys())})
-
+    if params.enable_wandb:
+        run_name = f"NYU TEST"
+        wandb.init(project="VSRVC", name=run_name)
     NYUmodel = Trainer(task_dict=task_dict,
                        weighting=params.weighting,
                        architecture=params.arch,
@@ -74,7 +78,7 @@ def main(params):
                        save_path=params.save_path,
                        load_path=params.load_path,
                        logging=params.enable_wandb,
-                       print_interval=50,
+                       print_interval=2,
                        **kwargs)
     if params.mode == 'train':
         NYUmodel.train(nyuv2_train_loader, nyuv2_test_loader, params.epochs)
@@ -82,6 +86,8 @@ def main(params):
         NYUmodel.test(nyuv2_test_loader)
     else:
         raise ValueError
+    if params.enable_wandb:
+        wandb.finish()
 
 
 if __name__ == "__main__":
