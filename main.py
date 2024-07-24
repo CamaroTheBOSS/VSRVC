@@ -7,7 +7,7 @@ from LibMTL.utils import set_device, set_random_seed
 from config import MyLibMTL_args, prepare_args
 from datasets import Vimeo90k
 from trainer import Trainer
-from metrics import CompressionTaskMetrics, RateDistortionLoss, QualityMetrics
+from metrics import CompressionTaskMetrics, RateDistortionLoss, QualityMetrics, VSRLoss
 from models.vsrvc import VCDecoder, VSRDecoder, VSRVCEncoder
 import wandb
 
@@ -53,7 +53,7 @@ def main(params):
                'weight': [1, 1, 0]},
         'vsr': {'metrics': ['psnr', 'ssim'],
                 'metrics_fn': QualityMetrics(),
-                'loss_fn': L1Loss(),
+                'loss_fn': VSRLoss(params.lmbda),
                 'weight': [1, 1]},
     }
 

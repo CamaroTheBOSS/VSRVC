@@ -28,7 +28,7 @@ class Trainer(nn.Module):
         self.scheduler_param = scheduler_param
         self.save_path = save_path
         self.load_path = load_path
-        self.logger = WandbLogger(print_interval) if logging else Logger(print_interval)
+        self.logger = WandbLogger(print_interval, task_dict) if logging else Logger(print_interval, task_dict)
 
         self._prepare_model(weighting, architecture, encoder_class, decoders)
         self._prepare_optimizer(optim_param, scheduler_param)
@@ -124,7 +124,7 @@ class Trainer(nn.Module):
             train_losses = torch.zeros(self.task_num).to(self.device)
             for tn, task in enumerate(self.task_name):
                 train_losses[tn] = self.meter.losses[task]._update_loss(preds[task], gts[task])
-                self.logger.log({f"{task}_loss": train_losses[tn]})
+                self.logger.log(task, "loss", train_losses[tn])
         else:
             train_losses = self.meter.losses[task_name]._update_loss(preds, gts)
         return train_losses
@@ -175,7 +175,7 @@ class Trainer(nn.Module):
                     train_losses = self._compute_loss(train_preds, train_gts)
                     self.meter.update(train_preds, train_gts)
                     self.logger.print(f"{batch_index + 1}/{train_batch}")
-                    self.logger.push({f"batch_index": batch_index})
+                    self.logger.push()
                 else:
                     train_losses = torch.zeros(self.task_num).to(self.device)
                     for tn, task in enumerate(self.task_name):
@@ -247,7 +247,11 @@ class Trainer(nn.Module):
                         test_loss = self._compute_loss(test_pred, test_gt, task)
                         self.meter.update(test_pred, test_gt, task)
         self.meter.record_time('end')
-        self.meter.get_score()
+        results = self.meter.get_score()
+        for task in self.task_name:
+            for i, metric_name in enumerate(self.task_dict[task]["metrics"]):
+                self.logger.log(task, metric_name, results[task][i], mode="val")
+        self.logger.push(mode="val")
         self.meter.display(epoch=epoch, mode=mode)
         improvement = self.meter.improvement
         self.meter.reinit()

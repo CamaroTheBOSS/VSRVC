@@ -44,11 +44,11 @@ class Vimeo90k(Dataset):
     def load_paths(self):
         videos = []
         with open(self.txt_file, "r") as f:
-            c = 0
+            # c = 0
             for suffix in f.readlines():
-                c += 1
-                if c == 200:
-                    break
+                # c += 1
+                # if c == 200:
+                #     break
                 frame_paths = glob(os.path.join(self.sequences, suffix.strip(), "*.png"))
                 for i in range(7 - self.sliding_window_size + 1):
                     videos.append([path for path in frame_paths[i:i + self.sliding_window_size]])
@@ -62,20 +62,7 @@ class Vimeo90k(Dataset):
 
     def __getitem__(self, index: int):
         video = self.read_video(index)
-        # if self.test_mode:
-        #     hqs = video[:, :, :self.crop_size[0], :self.crop_size[1]]
-        # else:
-        #     hqs = self.augmentation(video)
-        # lqs = self.resize(hqs)
-        # return lqs[-1], {"vc": lqs[-1], "vsr": hqs[-1]}
-
         return video, {"vc": torch.tensor(0), "vsr": torch.tensor(0)}
-        # hqs = video[:, :, :self.crop_size[0], :self.crop_size[1]]
-        # lqs = self.resize(hqs)
-        # return lqs[-1], {"vc": lqs[-1], "vsr": hqs[-1]}
-        # if self.test_mode:
-        #     return video[:, :, :self.crop_size[0], :self.crop_size[1]]
-        # return video
 
     def __len__(self) -> int:
         return len(self.videos)

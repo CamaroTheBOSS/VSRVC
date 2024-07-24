@@ -16,7 +16,7 @@ class RateDistortionLoss(AbsLoss):
         B, _, H, W = reconstruction.shape
         num_pixels = B * H * W
         bpp_loss = (prior_bits + hyperprior_bits) / num_pixels
-        return_value = self.distortion(reconstruction, gt) + bpp_loss / self.lmbda
+        return_value = self.lmbda * self.distortion(reconstruction, gt) + bpp_loss
         return return_value
 
     def _update_loss(self, pred, gt):
