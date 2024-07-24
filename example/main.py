@@ -1,6 +1,10 @@
+from LibMTL.loss import L1Loss
+
 import wandb
+from datasets import Vimeo90k
 
 from example.trainer import Trainer
+from models.vsrvc import VSRVCEncoder, VSRDecoder
 from utils import *
 from aspp import DeepLabHead
 from create_dataset import NYUv2
@@ -24,8 +28,8 @@ def main(params):
     kwargs, optim_param, scheduler_param = prepare_args(params)
 
     # prepare dataloaders
-    nyuv2_train_set = NYUv2(root=params.dataset_path, mode='train', augmentation=params.aug)
-    nyuv2_test_set = NYUv2(root=params.dataset_path, mode='test', augmentation=False)
+    nyuv2_train_set = Vimeo90k("../../Datasets/VIMEO90k", 2, sliding_window_size=1)
+    nyuv2_test_set = Vimeo90k("../../Datasets/VIMEO90k", 2, test_mode=True, sliding_window_size=1)
 
     nyuv2_train_loader = torch.utils.data.DataLoader(
         dataset=nyuv2_train_set,
@@ -43,26 +47,22 @@ def main(params):
         pin_memory=True)
 
     # define tasks
-    task_dict = {'segmentation': {'metrics': ['mIoU', 'pixAcc'],
-                                  'metrics_fn': SegMetric(),
-                                  'loss_fn': SegLoss(),
-                                  'weight': [1, 1]},
-                 'depth': {'metrics': ['abs_err', 'rel_err'],
-                           'metrics_fn': DepthMetric(),
-                           'loss_fn': DepthLoss(),
-                           'weight': [0, 0]},
-                 'normal': {'metrics': ['mean', 'median', '<11.25', '<22.5', '<30'],
-                            'metrics_fn': NormalMetric(),
-                            'loss_fn': NormalLoss(),
-                            'weight': [0, 0, 1, 1, 1]}}
+    task_dict = {'vc': {'metrics': ['mIoU', 'pixAcc'],
+                        'metrics_fn': SegMetric(),
+                        'loss_fn': L1Loss(),
+                        'weight': [1, 1]},
+                 'vsr': {'metrics': ['abs_err', 'rel_err'],
+                         'metrics_fn': DepthMetric(),
+                         'loss_fn': L1Loss(),
+                         'weight': [0, 0]}}
 
     # define encoder and decoders
     def encoder_class():
-        return resnet_dilated('resnet50')
+        return VSRVCEncoder()
+        # return resnet_dilated('resnet50')
 
     num_out_channels = {'segmentation': 13, 'depth': 1, 'normal': 3}
-    decoders = nn.ModuleDict({task: DeepLabHead(2048,
-                                                num_out_channels[task]) for task in list(task_dict.keys())})
+    decoders = nn.ModuleDict({task: VSRDecoder(64, 64) for task in list(task_dict.keys())})
     if params.enable_wandb:
         run_name = f"NYU TEST"
         wandb.init(project="VSRVC", name=run_name)

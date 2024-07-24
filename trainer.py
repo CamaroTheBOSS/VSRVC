@@ -2,8 +2,6 @@ import torch, os
 import torch.nn as nn
 import numpy as np
 import torch.nn.functional as F
-from kornia.augmentation import ColorJiggle, RandomCrop, RandomVerticalFlip, RandomHorizontalFlip, Resize
-from torchvision.transforms import Compose
 
 from LibMTL._record import _PerformanceMeter
 from LibMTL.utils import count_parameters
@@ -35,27 +33,6 @@ class Trainer(nn.Module):
         self._prepare_optimizer(optim_param, scheduler_param)
 
         self.meter = _PerformanceMeter(self.task_dict, self.multi_input)
-        self.augmentation = Compose([
-                ColorJiggle(brightness=(0.85, 1.15), contrast=(0.75, 1.15), saturation=(0.75, 1.25), hue=(-0.02, 0.02),
-                            same_on_batch=True, p=1),
-                RandomCrop(size=(256, 384), same_on_batch=True),
-                RandomVerticalFlip(same_on_batch=True, p=0.5),
-                RandomHorizontalFlip(same_on_batch=True, p=0.5),
-            ])
-        self.resize = Resize((256 // 2, 384 // 2))
-
-    def augment_data(self, data):
-        if self.model.training:
-            hqs = torch.stack([self.augmentation(vid) for vid in data])
-            lqs = torch.stack([self.resize(vid) for vid in hqs])
-            data = lqs[:, -1].clone()
-            label = {"vc": lqs[:, -1], "vsr": hqs[:, -1]}
-            return data, label
-        data = data[:, :, :, :256, :384]
-        hqs = data[:, -1]
-        lqs = torch.stack([self.resize(vid) for vid in data])
-        label = {"vc": lqs[:, -1].clone(), "vsr": hqs}
-        return lqs[:, -1], label
 
     def _prepare_model(self, weighting, architecture, encoder_class, decoders):
 
@@ -105,11 +82,15 @@ class Trainer(nn.Module):
 
     def _process_data(self, loader):
         try:
-            data, label = next(loader[1])
+            video = next(loader[1])
         except:
             loader[1] = iter(loader[0])
-            data, label = next(loader[1])
-        data = data.to(self.device, non_blocking=True)
+            video = next(loader[1])
+        video = video.to(self.device, non_blocking=True)
+        hqs = torch.stack([loader[1]._dataset.augmentation(vid) for vid in video])
+        lqs = torch.stack([loader[1]._dataset.resize(vid) for vid in hqs])
+        data = lqs[:, -1]
+        label = {"vc": lqs[:, -1], "vsr": hqs[:, -1]}
         if not self.multi_input:
             for task in self.task_name:
                 label[task] = label[task].to(self.device, non_blocking=True)
@@ -118,12 +99,6 @@ class Trainer(nn.Module):
         return data, label
 
     def process_preds(self, preds, task_name=None):
-        img_size = (256, 384)
-        for task in self.task_name:
-            if task == "vsr":
-                preds[task] = F.interpolate(preds[task], img_size, mode='bilinear', align_corners=True)
-            else:
-                preds[task] = F.interpolate(preds[task], (256 // 2, 384 // 2), mode='bilinear', align_corners=True)
         return preds
 
     def _compute_loss(self, preds, gts, task_name=None):
@@ -176,7 +151,6 @@ class Trainer(nn.Module):
             for batch_index in range(train_batch):
                 if not self.multi_input:
                     train_inputs, train_gts = self._process_data(train_loader)
-                    train_inputs, train_gts = self.augment_data(train_inputs) ##################
                     train_preds = self.model(train_inputs)
                     train_preds = self.process_preds(train_preds)
                     train_losses = self._compute_loss(train_preds, train_gts)
@@ -228,7 +202,7 @@ class Trainer(nn.Module):
             test_dataloaders (dict or torch.utils.data.DataLoader): If ``multi_input`` is ``True``, \
                             it is a dictionary of name-dataloader pairs. Otherwise, it is a single \
                             dataloader which returns data and a dictionary of name-label pairs in each iteration.
-            epoch (int, default=None): The current epoch. 
+            epoch (int, default=None): The current epoch.
         '''
         test_loader, test_batch = self._prepare_dataloaders(test_dataloaders)
 
@@ -238,7 +212,6 @@ class Trainer(nn.Module):
             if not self.multi_input:
                 for batch_index in range(test_batch):
                     test_inputs, test_gts = self._process_data(test_loader)
-                    test_inputs, test_gts = self.augment_data(test_inputs) ###################
                     test_preds = self.model(test_inputs)
                     test_preds = self.process_preds(test_preds)
                     test_losses = self._compute_loss(test_preds, test_gts)
