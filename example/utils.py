@@ -16,8 +16,6 @@ class SegMetric(AbsMetric):
         self.record = torch.zeros((self.num_classes, self.num_classes), dtype=torch.int64)
 
     def update_fun(self, pred, gt):
-        self.record = self.record + 1
-        return
         self.record = self.record.to(pred.device)
         pred = pred.softmax(1).argmax(1).flatten()
         gt = gt.long().flatten()
@@ -44,10 +42,6 @@ class DepthMetric(AbsMetric):
         self.rel_record = []
 
     def update_fun(self, pred, gt):
-        self.abs_record.append(1)
-        self.rel_record.append(1)
-        self.bs.append(pred.size()[0])
-        return
         device = pred.device
         binary_mask = (torch.sum(gt, dim=1) != 0).unsqueeze(1).to(device)
         pred = pred.masked_select(binary_mask)
@@ -78,8 +72,6 @@ class NormalMetric(AbsMetric):
 
     def update_fun(self, pred, gt):
         # gt has been normalized on the NYUv2 dataset
-        self.record.append(np.ones((500,)))
-        return
         pred = pred / torch.norm(pred, p=2, dim=1, keepdim=True)
         binary_mask = (torch.sum(gt, dim=1) != 0)
         error = torch.acos(

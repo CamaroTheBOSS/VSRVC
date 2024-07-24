@@ -2,9 +2,8 @@ import torch
 from torch import nn
 
 from models.basic_blocks import ResidualBlocksWithInputConv
-from models.bit_estimators import HyperpriorEntropyCoder
 from models.head_decoders import PixelShufflePack, ReconstructionHead
-from models.hyperprior_compressor import HyperpriorCompressAI, HyperpriorCompressor
+from models.hyperprior_compressor import HyperpriorCompressAI
 
 
 class VSRVCEncoder(nn.Module):
@@ -14,18 +13,10 @@ class VSRVCEncoder(nn.Module):
             nn.Conv2d(in_channels, mid_channels, 5, 2, 2),
             ResidualBlocksWithInputConv(in_channels=mid_channels, out_channels=out_channels, num_blocks=num_blocks)
         ])
-        self.pool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
-        self.add_conv = nn.Conv2d(mid_channels, mid_channels, 5, 2, 2)
-        self.add_conv2 = nn.Conv2d(mid_channels, mid_channels, 5, 2, 2)
-        self.add_conv3 = nn.Conv2d(mid_channels, mid_channels, 5, 2, 2)
 
     def forward(self, x):
         features = self.layers(x)
-        features = self.pool(features)
-        features = self.add_conv(features)
-        features = self.add_conv2(features)
-        features = self.add_conv3(features)
-        return features
+        return [features, (features, x)]
 
 
 class VSRDecoder(nn.Module):
@@ -41,13 +32,13 @@ class VSRDecoder(nn.Module):
         self.lrelu = nn.LeakyReLU(negative_slope=0.1, inplace=True)
 
     def forward(self, x):
-        # features, lqs = x
-        reconstruction = self.reconstruction_trunk(x)
+        features, lqs = x
+        reconstruction = self.reconstruction_trunk(features)
         reconstruction = self.lrelu(self.upsampler1(reconstruction))
         reconstruction = self.lrelu(self.upsampler2(reconstruction))
         reconstruction = self.lrelu(self.conv_hr(reconstruction))
         reconstruction = self.conv_last(reconstruction)
-        # reconstruction += self.interpolation(lqs)
+        reconstruction += self.interpolation(lqs)
         return reconstruction
 
 
