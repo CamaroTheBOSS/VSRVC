@@ -48,6 +48,15 @@ class VCDecoder(nn.Module):
         self.compressor = HyperpriorCompressAI(in_channels, mid_channels, mid_channels)
         self.reconstruction_head = ReconstructionHead(in_channels=mid_channels, mid_channels=mid_channels)
 
+    def compress(self, x: torch.Tensor):
+        prior_string, hyperprior_string, shape = self.compressor.compress(x)
+        return prior_string, hyperprior_string, shape
+
+    def decompress(self, prior_string, hyperprior_string, shape):
+        reconstructed_features = self.compressor.decompress(prior_string, hyperprior_string, shape)
+        reconstructed_frame = self.reconstruction_head(reconstructed_features)
+        return reconstructed_frame
+
     def forward(self, x: torch.Tensor):
         decompressed_data, prior_bits, hyperprior_bits = self.compressor.train_compression_decompression(x)
         reconstructed_frame = self.reconstruction_head(decompressed_data)

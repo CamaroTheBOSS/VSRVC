@@ -159,7 +159,7 @@ class HyperpriorCompressAI(nn.Module):
 
         return reconstructed_data, prior_bits, hyperprior_bits
 
-    def compress(self, data: torch.Tensor, compress_dict: dict):
+    def compress(self, data: torch.Tensor):
         data_prior = self.data_encoder(data)
         data_hyperprior = self.hyperprior_encoder(torch.abs(data_prior))
 
@@ -170,10 +170,7 @@ class HyperpriorCompressAI(nn.Module):
         indexes = self.gaussian_conditional.build_indexes(sigmas)
         prior_string = self.gaussian_conditional.compress(data_prior, indexes)
 
-        compress_dict["prior_strings"].append(prior_string)
-        compress_dict["hyperprior_strings"].append(hyperprior_string)
-        compress_dict["shape"] = data_hyperprior.size()[-2:]
-        return compress_dict
+        return prior_string, hyperprior_string, data_hyperprior.size()[-2:]
 
     def decompress(self, prior_string, hyperprior_string, shape):
         decompressed_data_hyperprior = self.entropy_bottleneck.decompress(hyperprior_string, shape)

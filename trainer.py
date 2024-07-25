@@ -36,12 +36,12 @@ class Trainer(nn.Module):
 
         self.meter = _PerformanceMeter(self.task_dict, self.multi_input)
         self.augmentation = Compose([
-                ColorJiggle(brightness=(0.85, 1.15), contrast=(0.75, 1.15), saturation=(0.75, 1.25), hue=(-0.02, 0.02),
-                            same_on_batch=True, p=1),
-                RandomCrop(size=(256, 384), same_on_batch=True),
-                RandomVerticalFlip(same_on_batch=True, p=0.5),
-                RandomHorizontalFlip(same_on_batch=True, p=0.5),
-            ])
+            ColorJiggle(brightness=(0.85, 1.15), contrast=(0.75, 1.15), saturation=(0.75, 1.25), hue=(-0.02, 0.02),
+                        same_on_batch=True, p=1),
+            RandomCrop(size=(256, 384), same_on_batch=True),
+            RandomVerticalFlip(same_on_batch=True, p=0.5),
+            RandomHorizontalFlip(same_on_batch=True, p=0.5),
+        ])
         self.resize = Resize((256 // 2, 384 // 2))
 
     def augment_data(self, data):
@@ -172,7 +172,7 @@ class Trainer(nn.Module):
             for batch_index in range(train_batch):
                 if not self.multi_input:
                     train_inputs, train_gts = self._process_data(train_loader)
-                    train_inputs, train_gts = self.augment_data(train_inputs) ##################
+                    train_inputs, train_gts = self.augment_data(train_inputs)
                     train_preds = self.model(train_inputs)
                     train_preds = self.process_preds(train_preds)
                     train_losses = self._compute_loss(train_preds, train_gts)
@@ -234,7 +234,7 @@ class Trainer(nn.Module):
             if not self.multi_input:
                 for batch_index in range(test_batch):
                     test_inputs, test_gts = self._process_data(test_loader)
-                    test_inputs, test_gts = self.augment_data(test_inputs) ###################
+                    test_inputs, test_gts = self.augment_data(test_inputs)
                     test_preds = self.model(test_inputs)
                     test_preds = self.process_preds(test_preds)
                     test_losses = self._compute_loss(test_preds, test_gts)

@@ -100,15 +100,18 @@ class UVGDataset(Dataset):
         video = self.read_video(index)
         hqs = video[:, :, :self.crop_size[0], :self.crop_size[1]]
         n, c, h, w = hqs.shape
-        lqs = Resize((int(h / self.scale), int(w / self.scale)))(hqs)
+        lqs = Resize((int(h / self.scale), int(w / self.scale)))(hqs).unsqueeze(0)
 
-        return lqs, {"vc": lqs, "vsr": hqs}
+        return lqs, {"vc": lqs, "vsr": hqs.unsqueeze(0)}
 
-    def getitem_with_name(self, name: str):
+    def get_item_with_name(self, name: str):
         index = self.get_index_with_name(name)
         if index is None:
             return None, None
         return self.__getitem__(index)
+
+    def get_name_with_index(self, index: int):
+        return  self.videos[index][0].split("\\")[-2]
 
     def get_index_with_name(self, name: str):
         for i, vid in enumerate(self.videos):

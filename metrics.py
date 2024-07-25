@@ -90,6 +90,56 @@ class CompressionTaskMetrics(AbsMetric):
         self.bs = []
 
 
+class UVGMetrics:
+    def __init__(self):
+        super(UVGMetrics, self).__init__()
+        self.vc_psnr_record = []
+        self.vc_ssim_record = []
+        self.vsr_psnr_record = []
+        self.vsr_ssim_record = []
+        self.bpp_record = []
+
+    def update(self, vsr_sr_video, vc_compress_data, vc_decoded_video, gt):
+        vc_gt = gt["vc"]
+        vsr_gt = gt["vsr"]
+        _, N, _, H, W = vc_decoded_video.size()
+        bpp_const = 8.0 / (H * W)
+        for i in range(len(vc_compress_data)):
+            vc_pred = vc_decoded_video[:, i]
+            vsr_pred = vsr_sr_video[:, i]
+            compress_data_pred = vc_compress_data[i][:2]
+
+            vc_psnr_value = torch.clamp(psnr(vc_pred, vc_gt[:, i]), 0, 255).item()
+            vc_ssim_value = torch.clamp(ssim(vc_pred, vc_gt[:, i]), 0, 1).item()
+            bpp_values = [sum(len(s) for s in compress_data_pred[0]) * bpp_const,
+                          sum(len(s) for s in compress_data_pred[1]) * bpp_const]
+
+            vsr_psnr_value = torch.clamp(psnr(vsr_pred, vsr_gt[:, i]), 0, 255).item()
+            vsr_ssim_value = torch.clamp(ssim(vsr_pred, vsr_gt[:, i]), 0, 1).item()
+
+            self.vc_psnr_record.append(vc_psnr_value)
+            self.vc_ssim_record.append(vc_ssim_value)
+            self.vsr_psnr_record.append(vsr_psnr_value)
+            self.vsr_ssim_record.append(vsr_ssim_value)
+            self.bpp_record.append(bpp_values)
+
+    def get_records_dict(self):
+        return {
+            "vc_psnr": self.vc_psnr_record,
+            "vc_ssim": self.vc_ssim_record,
+            "vsr_psnr": self.vsr_psnr_record,
+            "vsr_ssim": self.vsr_ssim_record,
+            "bpp": self.bpp_record,
+        }
+
+    def reinit(self):
+        self.vc_psnr_record = []
+        self.vc_ssim_record = []
+        self.vsr_psnr_record = []
+        self.vsr_ssim_record = []
+        self.bpp_record = []
+
+
 def psnr(input_images: Tensor, target_images: Tensor, aggregate: str = "mean") -> Tensor:
     if aggregate not in ["mean", "sum", "none"]:
         raise NotImplementedError(f"Unrecognized aggregation strategy \"{aggregate}\". "
