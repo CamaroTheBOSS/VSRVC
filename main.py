@@ -56,13 +56,25 @@ def main(params):
                 'loss_fn': VSRLoss(params.lmbda),
                 'weight': [1, 1]},
     }
-
-    def encoder_class():
-        return VSRVCEncoder(in_channels=3, mid_channels=64, out_channels=64)
-
+    kwargs["arch_args"]["encoder_kwargs"] = {
+        'in_channels': 3,
+        'mid_channels': 64,
+        'out_channels': 64,
+        'num_blocks': 3,
+    }
+    decoder_kwargs = {
+        'vc': {
+            'in_channels': 64,
+            'mid_channels': 64,
+        },
+        'vsr': {
+            'in_channels': 64,
+            'mid_channels': 64,
+        }
+    }
     decoders = nn.ModuleDict({
-        'vc': VCDecoder(64, 64),
-        'vsr': VSRDecoder(64, 64)
+        'vc': VCDecoder(**decoder_kwargs['vc']),
+        'vsr': VSRDecoder(**decoder_kwargs['vsr'])
     })
 
     if params.enable_wandb:
@@ -71,8 +83,9 @@ def main(params):
     my_trainer = Trainer(task_dict=task_dict,
                          weighting=params.weighting,
                          architecture=params.arch,
-                         encoder_class=encoder_class,
+                         encoder_class=VSRVCEncoder,
                          decoders=decoders,
+                         decoder_kwargs=decoder_kwargs,
                          rep_grad=params.rep_grad,
                          multi_input=params.multi_input,
                          optim_param=optim_param,
@@ -81,6 +94,7 @@ def main(params):
                          load_path=params.load_path,
                          logging=params.enable_wandb,
                          print_interval=100,
+                         lmbda=params.lmbda,
                          **kwargs)
     if params.mode == 'train':
         my_trainer.train(train_dataloader, test_dataloader, params.epochs)

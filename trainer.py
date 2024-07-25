@@ -1,3 +1,5 @@
+import json
+
 import torch, os
 import torch.nn as nn
 import numpy as np
@@ -14,13 +16,15 @@ from scheduler import MyCosineAnnealingLR
 
 
 class Trainer(nn.Module):
-    def __init__(self, task_dict, weighting, architecture, encoder_class, decoders,
-                 rep_grad, multi_input, optim_param, scheduler_param, logging, print_interval,
+    def __init__(self, task_dict, weighting, architecture, encoder_class, decoders, decoder_kwargs,
+                 rep_grad, multi_input, optim_param, scheduler_param, logging, print_interval, lmbda,
                  save_path=None, load_path=None, **kwargs):
         super(Trainer, self).__init__()
 
         self.device = torch.device('cuda:0')
         self.kwargs = kwargs
+        self.decoder_kwargs = decoder_kwargs
+        self.lmbda = lmbda
         self.task_dict = task_dict
         self.task_num = len(task_dict)
         self.task_name = list(task_dict.keys())
@@ -81,6 +85,30 @@ class Trainer(nn.Module):
             self.model.load_state_dict(torch.load(self.load_path), strict=False)
             print('Load Model from - {}'.format(self.load_path))
         count_parameters(self.model)
+
+        if self.save_path is not None:
+            if not os.path.exists(self.save_path):
+                os.makedirs(self.save_path)
+            model_data = {
+                "task_name": self.task_name,
+                "lmbda": self.lmbda,
+                "encoder_class": encoder_class.__name__,
+                "decoders": [
+                    {
+                        "task": task,
+                        "module": module.__class__.__name__,
+                        "kwargs": self.decoder_kwargs[task]
+                    } for task, module in decoders.items()
+                ],
+                "weighting": weighting.__name__,
+                "architecture": architecture.__name__,
+                "arch_args": self.kwargs['arch_args'],
+                "rep_grad": self.rep_grad,
+                "multi_input": self.multi_input,
+                "checkpoint": os.path.abspath(os.path.join(self.save_path, "best.pt"))
+            }
+            with open(os.path.join(self.save_path, "model.json"), "w") as f:
+                json.dump(model_data, f)
 
     def _prepare_optimizer(self, optim_param, scheduler_param):
         optim_dict = {
