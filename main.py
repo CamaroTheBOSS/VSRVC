@@ -80,7 +80,7 @@ def main(params):
                          save_path=params.save_path,
                          load_path=params.load_path,
                          logging=params.enable_wandb,
-                         print_interval=5,
+                         print_interval=100,
                          **kwargs)
     if params.mode == 'train':
         my_trainer.train(train_dataloader, test_dataloader, params.epochs)

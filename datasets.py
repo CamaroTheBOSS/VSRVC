@@ -47,7 +47,7 @@ class Vimeo90k(Dataset):
             # c = 0
             for suffix in f.readlines():
                 # c += 1
-                # if c == 200:
+                # if c == 32:
                 #     break
                 frame_paths = glob(os.path.join(self.sequences, suffix.strip(), "*.png"))
                 for i in range(7 - self.sliding_window_size + 1):

@@ -10,6 +10,7 @@ import LibMTL.weighting as weighting_method
 import LibMTL.architecture as architecture_method
 
 from logger import Logger, WandbLogger
+from scheduler import MyCosineAnnealingLR
 
 
 class Trainer(nn.Module):
@@ -85,6 +86,7 @@ class Trainer(nn.Module):
         optim_dict = {
             'sgd': torch.optim.SGD,
             'adam': torch.optim.Adam,
+            'adamw': torch.optim.AdamW,
             'adagrad': torch.optim.Adagrad,
             'rmsprop': torch.optim.RMSprop,
         }
@@ -93,6 +95,7 @@ class Trainer(nn.Module):
             'step': torch.optim.lr_scheduler.StepLR,
             'cos': torch.optim.lr_scheduler.CosineAnnealingLR,
             'reduce': torch.optim.lr_scheduler.ReduceLROnPlateau,
+            'mycos': MyCosineAnnealingLR,
         }
         optim_arg = {k: v for k, v in optim_param.items() if k != 'optim'}
         self.optimizer = optim_dict[optim_param['optim']](self.model.parameters(), **optim_arg)

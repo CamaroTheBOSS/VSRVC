@@ -10,10 +10,10 @@ class Logger:
         self.counter = 0
         self.last_print = datetime.datetime.now()
 
-    def log(self, task, metric_name, value, mode):
+    def log(self, task, metric_name, value, mode="train"):
         pass
 
-    def push(self, mode):
+    def push(self, mode="train"):
         pass
 
     def print(self, msg):
