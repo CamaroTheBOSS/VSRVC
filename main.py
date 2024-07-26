@@ -8,8 +8,9 @@ from config import MyLibMTL_args, prepare_args
 from datasets import Vimeo90k
 from trainer import Trainer
 from metrics import CompressionTaskMetrics, RateDistortionLoss, QualityMetrics, VSRLoss
-from models.vsrvc import VCDecoder, VSRDecoder, VSRVCEncoder
+from models.vsrvc import ICDecoder, ISRDecoder, ISRICEncoder
 import wandb
+from training_configs import icisr
 
 
 def parse_args(parser):
@@ -25,9 +26,7 @@ def parse_args(parser):
 
 def main(params):
     kwargs, optim_param, scheduler_param = prepare_args(params)
-
-    train_set = Vimeo90k("../Datasets/VIMEO90k", params.scale, sliding_window_size=1)
-    test_set = Vimeo90k("../Datasets/VIMEO90k", params.scale, test_mode=True, sliding_window_size=1)
+    train_set, test_set, encoder_class, decoders, kwargs, decoder_kwargs = icisr(params, kwargs)
     train_dataloader = DataLoader(
         train_set,
         batch_size=params.batch_size,
@@ -44,7 +43,6 @@ def main(params):
         pin_memory=True,
         drop_last=True,
     )
-
     # define tasks
     task_dict = {
         'vc': {'metrics': ['psnr', 'ssim', 'bpp'],
@@ -56,26 +54,6 @@ def main(params):
                 'loss_fn': VSRLoss(params.lmbda),
                 'weight': [1, 1]},
     }
-    kwargs["arch_args"]["encoder_kwargs"] = {
-        'in_channels': 3,
-        'mid_channels': 64,
-        'out_channels': 64,
-        'num_blocks': 3,
-    }
-    decoder_kwargs = {
-        'vc': {
-            'in_channels': 64,
-            'mid_channels': 64,
-        },
-        'vsr': {
-            'in_channels': 64,
-            'mid_channels': 64,
-        }
-    }
-    decoders = nn.ModuleDict({
-        'vc': VCDecoder(**decoder_kwargs['vc']),
-        'vsr': VSRDecoder(**decoder_kwargs['vsr'])
-    })
 
     if params.enable_wandb:
         run_name = f"VSRVC MTL with bpp lambda={params.lmbda}"
@@ -83,7 +61,7 @@ def main(params):
     my_trainer = Trainer(task_dict=task_dict,
                          weighting=params.weighting,
                          architecture=params.arch,
-                         encoder_class=VSRVCEncoder,
+                         encoder_class=encoder_class,
                          decoders=decoders,
                          decoder_kwargs=decoder_kwargs,
                          rep_grad=params.rep_grad,

@@ -6,9 +6,9 @@ from models.head_decoders import PixelShufflePack, ReconstructionHead
 from models.hyperprior_compressor import HyperpriorCompressAI
 
 
-class VSRVCEncoder(nn.Module):
+class ISRICEncoder(nn.Module):
     def __init__(self, in_channels: int = 3, mid_channels: int = 64, out_channels: int = 64, num_blocks: int = 3):
-        super(VSRVCEncoder, self).__init__()
+        super(ISRICEncoder, self).__init__()
         self.layers = nn.Sequential(*[
             nn.Conv2d(in_channels, mid_channels, 5, 2, 2),
             ResidualBlocksWithInputConv(in_channels=mid_channels, out_channels=out_channels, num_blocks=num_blocks)
@@ -19,9 +19,9 @@ class VSRVCEncoder(nn.Module):
         return [features, (features, x)]
 
 
-class VSRDecoder(nn.Module):
+class ISRDecoder(nn.Module):
     def __init__(self, in_channels: int, mid_channels: int):
-        super(VSRDecoder, self).__init__()
+        super(ISRDecoder, self).__init__()
         self.reconstruction_trunk = ResidualBlocksWithInputConv(in_channels, mid_channels, 3)
         self.upsampler1 = PixelShufflePack(mid_channels, mid_channels, 2, upsample_kernel=3)
         self.upsampler2 = PixelShufflePack(mid_channels, mid_channels, 2, upsample_kernel=3)
@@ -42,9 +42,9 @@ class VSRDecoder(nn.Module):
         return reconstruction
 
 
-class VCDecoder(nn.Module):
+class ICDecoder(nn.Module):
     def __init__(self, in_channels: int, mid_channels: int):
-        super(VCDecoder, self).__init__()
+        super(ICDecoder, self).__init__()
         self.compressor = HyperpriorCompressAI(in_channels, mid_channels, mid_channels)
         self.reconstruction_head = ReconstructionHead(in_channels=mid_channels, mid_channels=mid_channels)
 

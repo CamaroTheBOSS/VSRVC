@@ -1,7 +1,7 @@
-from models.vsrvc import VSRVCEncoder
-from models.vsrvc import VSRDecoder
-from models.vsrvc import VCDecoder
+from models.vsrvc import ISRICEncoder
+from models.vsrvc import ISRDecoder
+from models.vsrvc import ICDecoder
 
-__all__ = ['VSRVCEncoder',
-           'VSRDecoder',
-           'VCDecoder',]
+__all__ = ['ISRICEncoder',
+           'ISRDecoder',
+           'ICDecoder', ]
