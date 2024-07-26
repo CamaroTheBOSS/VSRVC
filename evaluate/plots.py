@@ -38,8 +38,14 @@ def _validate_metric_type(metric):
     return True
 
 
+def _validate_task(metric):
+    supported_tasks = ["vc", "vsr"]
+    if metric not in supported_tasks:
+        raise ValueError(f"Unrecognized task. Supported are {supported_tasks}")
+    return True
+
+
 def _plot_vc_3d(data, metric, fig, mode, linestyle, color):
-    _validate_plot_mode(mode)
     if fig is None:
         fig = plt.figure()
     metric = "vc_psnr" if metric == "psnr" else "vc_ssim"
