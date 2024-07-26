@@ -6,17 +6,18 @@ from models.head_decoders import PixelShufflePack, ReconstructionHead
 from models.hyperprior_compressor import HyperpriorCompressAI
 
 
-class ISRICEncoder(nn.Module):
-    def __init__(self, in_channels: int = 3, mid_channels: int = 64, out_channels: int = 64, num_blocks: int = 3):
-        super(ISRICEncoder, self).__init__()
+class VSRVCEncoder(nn.Module):
+    def __init__(self,  sliding_window: int = 1, mid_channels: int = 64, out_channels: int = 64, num_blocks: int = 3):
+        super(VSRVCEncoder, self).__init__()
         self.layers = nn.Sequential(*[
-            nn.Conv2d(in_channels, mid_channels, 5, 2, 2),
+            nn.Conv2d(3 * sliding_window, mid_channels, 5, 2, 2),
             ResidualBlocksWithInputConv(in_channels=mid_channels, out_channels=out_channels, num_blocks=num_blocks)
         ])
 
     def forward(self, x):
-        features = self.layers(x)
-        return [features, (features, x)]
+        B, N, C, H, W = x.size()
+        features = self.layers(x.view(B, N*C, H, W))
+        return [features, (features, x[:, -1])]
 
 
 class ISRDecoder(nn.Module):

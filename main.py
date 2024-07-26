@@ -1,16 +1,11 @@
-from LibMTL.model import resnet_dilated
-from torch import nn
 from torch.utils.data import DataLoader
 
-from LibMTL.loss import L1Loss
 from LibMTL.utils import set_device, set_random_seed
 from config import MyLibMTL_args, prepare_args
-from datasets import Vimeo90k
 from trainer import Trainer
 from metrics import CompressionTaskMetrics, RateDistortionLoss, QualityMetrics, VSRLoss
-from models.vsrvc import ICDecoder, ISRDecoder, ISRICEncoder
 import wandb
-from training_configs import icisr
+from training_configs import vsrvc
 
 
 def parse_args(parser):
@@ -21,12 +16,14 @@ def parse_args(parser):
     parser.add_argument('--vimeo_path', type=str, help='path to vimeo90k dataset')
     parser.add_argument('--num_workers', default=0, type=int, help='num workers in dataloaders')
     parser.add_argument('--enable_wandb', action='store_true', default=False, help='whether to enable wandb')
+    parser.add_argument('--sliding_window', default=1, type=int, help='sliding window size for processing video by '
+                                                                      'encoder')
     return parser.parse_args()
 
 
 def main(params):
     kwargs, optim_param, scheduler_param = prepare_args(params)
-    train_set, test_set, encoder_class, decoders, kwargs, decoder_kwargs = icisr(params, kwargs)
+    train_set, test_set, encoder_class, decoders, kwargs, decoder_kwargs = vsrvc(params, kwargs)
     train_dataloader = DataLoader(
         train_set,
         batch_size=params.batch_size,

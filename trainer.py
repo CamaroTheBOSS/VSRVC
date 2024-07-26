@@ -52,14 +52,12 @@ class Trainer(nn.Module):
         if self.model.training:
             hqs = torch.stack([self.augmentation(vid) for vid in data])
             lqs = torch.stack([self.resize(vid) for vid in hqs])
-            data = lqs[:, -1].clone()
-            label = {"vc": lqs[:, -1], "vsr": hqs[:, -1]}
-            return data, label
-        data = data[:, :, :, :256, :384]
-        hqs = data[:, -1]
-        lqs = torch.stack([self.resize(vid) for vid in data])
-        label = {"vc": lqs[:, -1].clone(), "vsr": hqs}
-        return lqs[:, -1], label
+            label = {"vc": lqs[:, -1].clone(), "vsr": hqs[:, -1]}
+            return lqs, label
+        hqs = data[:, :, :, :256, :384]
+        lqs = torch.stack([self.resize(vid) for vid in hqs])
+        label = {"vc": lqs[:, -1].clone(), "vsr": hqs[:, -1]}
+        return lqs, label
 
     def _prepare_model(self, weighting, architecture, encoder_class, decoders):
 

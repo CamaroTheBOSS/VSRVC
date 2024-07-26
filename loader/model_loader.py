@@ -38,11 +38,15 @@ def load_model(json_file):
                                            **kwargs)
             self.init_param()
             self.lmbda = lmbda
+            self.sw = kwargs["encoder_kwargs"]["sliding_window"]
 
         def compress(self, inputs, task_name=None):
             out = {task: [] for task in self.task_name}
-            for i in range(inputs.size()[1]):
-                inp = inputs[:, i]
+            for i in range(1, inputs.size()[1] + 1):
+                if i < self.sw:
+                    inp = torch.stack([*[torch.zeros_like(inputs[:, i]) for _ in range(self.sw - i)], inputs[:, i-1]])
+                else:
+                    inp = inputs[:, i - self.sw:i]
                 s_rep = self.encoder(inp)
                 same_rep = True if not isinstance(s_rep, list) and not self.multi_input else False
                 for tn, task in enumerate(self.task_name):
