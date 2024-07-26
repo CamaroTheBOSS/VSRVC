@@ -39,8 +39,6 @@ def _eval_example(model, dataset, index, meter=None, results=None, save_root=Non
 def eval_one(model_root: str, index, save_root=None):
     dataset = UVGDataset("../../Datasets/UVG", 2)
     model = load_model(model_root)
-    model.eval()
-    model.update(force=True)
     results = _eval_example(model, dataset, index, save_root=save_root)
     return results
 
@@ -50,8 +48,6 @@ def eval_all(model_root: str):
     uvg_set = UVGDataset("../../Datasets/UVG", 2)
     model = load_model(model_root)
     meter = UVGMetrics()
-    model.eval()
-    model.update(force=True)
     results = {"vc_psnr": [], "vc_ssim": [], "vsr_psnr": [], "vsr_ssim": [], "bpp": []}
     for index in range(len(uvg_set)):
         results = _eval_example(model, uvg_set, index, meter=meter, results=results)

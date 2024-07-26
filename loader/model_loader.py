@@ -86,4 +86,6 @@ def load_model(json_file):
                      lmbda=model_data["lmbda"],
                      kwargs=model_data['arch_args']).to(device)
     model.load_state_dict(torch.load(model_data["checkpoint"]))
+    model.eval()
+    model.update(force=True)
     return model
