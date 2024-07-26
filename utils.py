@@ -1,3 +1,5 @@
+import os
+import shutil
 import cv2
 import numpy as np
 import torch
@@ -8,3 +10,17 @@ def show_frame(frame: torch.Tensor):
     cv2_frame = np.clip(frame[indexes].detach().cpu().permute(1, 2, 0).numpy() * 255., 0, 255).astype(np.uint8)
     cv2.imshow("", cv2.cvtColor(cv2_frame, cv2.COLOR_RGB2BGR))
     cv2.waitKey(0)
+
+
+def save_video(video: torch.Tensor, root: str, name: str = "vid") -> None:
+    path = os.path.join(root, name)
+    if os.path.exists(path):
+        shutil.rmtree(path)
+    os.makedirs(path)
+    if len(video.size()) == 5:
+        video = video[0]
+
+    for i, frame in enumerate(video):
+        numpy_frame = np.clip(frame.detach().permute(1, 2, 0).cpu().numpy() * 255., 0, 255).astype(np.uint8)
+        cv_frame = cv2.cvtColor(numpy_frame, cv2.COLOR_RGB2BGR)
+        cv2.imwrite(f"{path}/img{(i + 1):03d}.png", cv_frame)
