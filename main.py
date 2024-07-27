@@ -59,7 +59,7 @@ def main(params):
     }
 
     if params.enable_wandb:
-        info = '_RES' if params.model_type == 'vsrvc_res' else f' sw={params.sliding_window}' + f" l={params.lmbda}"
+        info = ('_RES' if params.model_type == 'vsrvc_res' else f' sw={params.sliding_window}') + f" l={params.lmbda}"
         run_name = f"VSRVC{info}"
         wandb.init(project="VSRVC", name=run_name)
     my_trainer = Trainer(task_dict=task_dict,
