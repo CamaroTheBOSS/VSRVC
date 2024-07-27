@@ -5,7 +5,7 @@ from config import MyLibMTL_args, prepare_args
 from trainer import Trainer
 from metrics import CompressionTaskMetrics, RateDistortionLoss, QualityMetrics, VSRLoss
 import wandb
-from training_configs import vsrvc
+from training_configs import vsrvc, vsrvc_residual
 
 
 def parse_args(parser):
@@ -18,12 +18,18 @@ def parse_args(parser):
     parser.add_argument('--enable_wandb', action='store_true', default=False, help='whether to enable wandb')
     parser.add_argument('--sliding_window', default=1, type=int, help='sliding window size for processing video by '
                                                                       'encoder')
+    parser.add_argument('--model_type', default="vsrvc", type=str, help='trained model type, options: vsrvc, vsrvc_res')
     return parser.parse_args()
 
 
 def main(params):
     kwargs, optim_param, scheduler_param = prepare_args(params)
-    train_set, test_set, encoder_class, decoders, kwargs, decoder_kwargs = vsrvc(params, kwargs)
+    if params.model_type == "vsrvc":
+        train_set, test_set, encoder_class, decoders, kwargs, decoder_kwargs = vsrvc(params, kwargs)
+    elif params.model_type == "vsrvc_res":
+        train_set, test_set, encoder_class, decoders, kwargs, decoder_kwargs = vsrvc_residual(params, kwargs)
+    else:
+        raise ValueError("Unrecognized model_type. Supported ones are: vsrvc, vsrvc_res")
     train_dataloader = DataLoader(
         train_set,
         batch_size=params.batch_size,
@@ -53,7 +59,8 @@ def main(params):
     }
 
     if params.enable_wandb:
-        run_name = f"VSRVC MTL with bpp lambda={params.lmbda}"
+        info = '_RES' if params.model_type == 'vsrvc_res' else f' sw={params.sliding_window}' + f" l={params.lmbda}"
+        run_name = f"VSRVC{info}"
         wandb.init(project="VSRVC", name=run_name)
     my_trainer = Trainer(task_dict=task_dict,
                          weighting=params.weighting,

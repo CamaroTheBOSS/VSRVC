@@ -1,7 +1,8 @@
 from torch import nn
 
 from datasets import Vimeo90k
-from models.vsrvc import ICDecoder, ISRDecoder, VSRVCEncoder
+from models.vsrvc import ICDecoder, ISRDecoder, VSRVCEncoder, VCResidualDecoder, VSRResidualDecoder, \
+    VSRVCResidualEncoder
 
 
 def vsrvc(params, kwargs):
@@ -24,6 +25,34 @@ def vsrvc(params, kwargs):
     encoder_class = VSRVCEncoder
     kwargs["arch_args"]["encoder_kwargs"] = {
         'sliding_window': params.sliding_window,
+        'mid_channels': 64,
+        'out_channels': 64,
+        'num_blocks': 3,
+    }
+
+    return train_set, test_set, encoder_class, decoders, kwargs, decoder_kwargs
+
+
+def vsrvc_residual(params, kwargs):
+    train_set = Vimeo90k("../Datasets/VIMEO90k", params.scale, sliding_window_size=2)
+    test_set = Vimeo90k("../Datasets/VIMEO90k", params.scale, test_mode=True, sliding_window_size=2)
+    decoder_kwargs = {
+        'vc': {
+            'in_channels': 64,
+            'mid_channels': 64,
+        },
+        'vsr': {
+            'in_channels': 64,
+            'mid_channels': 64,
+        }
+    }
+    decoders = nn.ModuleDict({
+        'vc': VCResidualDecoder(**decoder_kwargs['vc']),
+        'vsr': VSRResidualDecoder(**decoder_kwargs['vsr'])
+    })
+    encoder_class = VSRVCResidualEncoder
+    kwargs["arch_args"]["encoder_kwargs"] = {
+        'in_channels': 3,
         'mid_channels': 64,
         'out_channels': 64,
         'num_blocks': 3,
