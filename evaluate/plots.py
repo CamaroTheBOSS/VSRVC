@@ -4,6 +4,14 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 
+def get_plot_colors():
+    return ["#56B4E9", "#0072B2", "#009E73", "#000000", "#ad3bff", "#4b8a8c", "#9a6429", "#d07dce", "#ff7b5a"]
+
+
+def get_plot_linestyles():
+    return ["-", "--", "-", "--", "-", "--", "-", "--", "-"]
+
+
 def load_eval_file(eval_file):
     with open(eval_file) as f:
         data = json.load(f)
@@ -78,6 +86,24 @@ def plot_vc(data, metric="psnr", fig=None, mode="normal", linestyle="-", color="
     return _plot_vc_2d(data, **kwargs) if len(data["vc_psnr"].shape) == 2 else _plot_vc_3d(data, **kwargs)
 
 
+def plot_vc_multiple(eval_files, linestyles=None, colors=None, legend=None, mode="normal", metric="psnr"):
+    if linestyles is None:
+        linestyles = get_plot_linestyles()[:len(eval_files)]
+    if colors is None:
+        colors = get_plot_colors()[:len(eval_files)]
+    hevc_data = load_alg_database("database.json", "hevc")
+    avc_data = load_alg_database("database.json", "avc")
+    fig, _ = plot_vc(avc_data, mode=mode, metric=metric, linestyle="-", color="#E69F00")
+    plot_vc(hevc_data, fig=fig, mode=mode, metric=metric, linestyle="-", color="#D55E00")
+    for i, eval_file in enumerate(eval_files):
+        eval_data = load_eval_file(eval_file)
+        plot_vc(eval_data, fig=fig, mode=mode, metric=metric, linestyle=linestyles[i], color=colors[i])
+    if legend is not None:
+        legend = ["AVC", "HEVC"] + legend
+        plt.legend(legend)
+    return fig
+
+
 def get_vsr(data):
     quality = {"vsr_psnr": data["vsr_psnr"].mean(), "vsr_ssim": data["vsr_ssim"].mean()}
     return quality
@@ -85,12 +111,6 @@ def get_vsr(data):
 
 if __name__ == "__main__":
     eval_data = load_eval_file("../weights/isric 1024/eval.json")
-    hevc_data = load_alg_database("database.json", "hevc")
-    avc_data = load_alg_database("database.json", "avc")
-    bilinear_data = load_alg_database("database.json", "bilinear")
-    fig, _ = plot_vc(eval_data, mode="normal", metric="ssim")
-    plot_vc(hevc_data, fig=fig, mode="normal", metric="ssim")
-    plot_vc(avc_data, fig=fig, mode="normal", metric="ssim")
-    print(get_vsr(eval_data))
-    print(get_vsr(bilinear_data))
+    plot_vc_multiple(["../weights/isric 1024/eval.json", "../weights/vsrvc3 1024/eval.json"],
+                     legend=["ISRIC", "VSRVC3"])
     plt.show()

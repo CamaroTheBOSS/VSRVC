@@ -58,5 +58,5 @@ def eval_all(model_root: str):
 
 if __name__ == "__main__":
     set_random_seed(777)
-    eval_one("../weights/isric 1024", 4, "../weights/isric 1024")
+    eval_all("../weights/vsrvc3 1024")
     # eval_all("../weights/isric 1024")

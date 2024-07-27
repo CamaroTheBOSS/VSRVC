@@ -44,7 +44,9 @@ def load_model(json_file):
             out = {task: [] for task in self.task_name}
             for i in range(1, inputs.size()[1] + 1):
                 if i < self.sw:
-                    inp = torch.stack([*[torch.zeros_like(inputs[:, i]) for _ in range(self.sw - i)], inputs[:, i-1]])
+                    zeros = torch.zeros_like(inputs[:, :self.sw - i])
+                    inp = inputs[:, :i]
+                    inp = torch.cat([zeros, inp], dim=1)
                 else:
                     inp = inputs[:, i - self.sw:i]
                 s_rep = self.encoder(inp)
