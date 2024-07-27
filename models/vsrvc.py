@@ -57,11 +57,11 @@ class VCResidualDecoder(nn.Module):
         prior_string, hyperprior_string, shape = self.compressor.compress(res)
         return prior_string, hyperprior_string, shape
 
-    def decompress(self, prior_string, hyperprior_string, shape):
+    def decompress(self, prev_feat, prior_string, hyperprior_string, shape):
         recon_res = self.compressor.decompress(prior_string, hyperprior_string, shape)
-        # recon_feat = ???
-        # reconstructed_frame = self.reconstruction_head(reconstructed_features)
-        # return reconstructed_frame
+        recon_feat = recon_res + prev_feat
+        recon_frame = self.reconstruction_head(recon_feat)
+        return recon_frame
 
     def forward(self, x: torch.Tensor):
         prev_feat, curr_feat = x
