@@ -44,6 +44,7 @@ class WandbLogger(Logger):
         wandb.define_metric(name, step_metric=step_metric)
 
     def define_metrics(self):
+        self.create_metric(build_metric_name("train", "aux", "loss"), step_metric=self.train_step_metric)
         for task in self.task_dict.keys():
             self.create_metric(build_metric_name("train", task, "loss"), step_metric=self.train_step_metric)
             for metric in self.task_dict[task]['metrics']:

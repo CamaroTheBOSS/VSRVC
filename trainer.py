@@ -1,9 +1,12 @@
 import json
+from typing import cast
 
 import torch, os
 import torch.nn as nn
 import numpy as np
+from compressai.entropy_models import EntropyBottleneck
 from kornia.augmentation import ColorJiggle, RandomCrop, RandomVerticalFlip, RandomHorizontalFlip, Resize
+from torch import Tensor
 from torchvision.transforms import Compose
 
 from LibMTL._record import _PerformanceMeter
@@ -123,13 +126,36 @@ class Trainer(nn.Module):
             'reduce': torch.optim.lr_scheduler.ReduceLROnPlateau,
             'mycos': MyCosineAnnealingLR,
         }
+        parameters = {
+            "main": {
+                name
+                for name, param in self.named_parameters()
+                if param.requires_grad and not name.endswith(".quantiles")
+            },
+            "aux": {
+                name
+                for name, param in self.named_parameters()
+                if param.requires_grad and name.endswith(".quantiles")
+            },
+        }
+        params_dict = dict(self.named_parameters())
+        inter_params = parameters["main"] & parameters["aux"]
+        union_params = parameters["main"] | parameters["aux"]
+        assert len(inter_params) == 0
+        assert len(union_params) - len(params_dict.keys()) == 0
+
         optim_arg = {k: v for k, v in optim_param.items() if k != 'optim'}
-        self.optimizer = optim_dict[optim_param['optim']](self.model.parameters(), **optim_arg)
+        params_main = (params_dict[name] for name in sorted(parameters["main"]))
+        self.optimizer = optim_dict[optim_param['optim']](params_main, **optim_arg)
+        params_aux = (params_dict[name] for name in sorted(parameters["aux"]))
+        self.aux_optimizer = optim_dict[optim_param['optim']](params_aux, **optim_arg)
         if scheduler_param is not None:
             scheduler_arg = {k: v for k, v in scheduler_param.items() if k != 'scheduler'}
             self.scheduler = scheduler_dict[scheduler_param['scheduler']](self.optimizer, **scheduler_arg)
+            self.aux_scheduler = scheduler_dict[scheduler_param['scheduler']](self.aux_optimizer, **scheduler_arg)
         else:
             self.scheduler = None
+            self.aux_scheduler = None
 
     def _process_data(self, loader):
         try:
@@ -157,6 +183,11 @@ class Trainer(nn.Module):
         else:
             train_losses = self.meter.losses[task_name]._update_loss(preds, gts)
         return train_losses
+
+    def _compute_aux_loss(self):
+        loss = cast(Tensor, sum(m.loss() for m in self.modules() if isinstance(m, EntropyBottleneck)))
+        self.logger.log("aux", "loss", loss)
+        return loss
 
     def _prepare_dataloaders(self, dataloaders):
         if not self.multi_input:
@@ -196,30 +227,24 @@ class Trainer(nn.Module):
             self.model.train()
             self.meter.record_time('begin')
             for batch_index in range(train_batch):
-                if not self.multi_input:
-                    train_inputs, train_gts = self._process_data(train_loader)
-                    train_inputs, train_gts = self.augment_data(train_inputs)
-                    train_preds = self.model(train_inputs)
-                    train_preds = self.process_preds(train_preds)
-                    train_losses = self._compute_loss(train_preds, train_gts)
-                    self.meter.update(train_preds, train_gts)
-                    self.logger.print(f"{batch_index + 1}/{train_batch}")
-                    self.logger.push()
-                else:
-                    train_losses = torch.zeros(self.task_num).to(self.device)
-                    for tn, task in enumerate(self.task_name):
-                        train_input, train_gt = self._process_data(train_loader[task])
-                        train_pred = self.model(train_input, task)
-                        train_pred = train_pred[task]
-                        train_pred = self.process_preds(train_pred, task)
-                        train_losses[tn] = self._compute_loss(train_pred, train_gt, task)
-                        self.meter.update(train_pred, train_gt, task)
+                train_inputs, train_gts = self._process_data(train_loader)
+                train_inputs, train_gts = self.augment_data(train_inputs)
+                train_preds = self.model(train_inputs)
+                train_losses = self._compute_loss(train_preds, train_gts)
+                self.meter.update(train_preds, train_gts)
+
+                aux_loss = self._compute_aux_loss()
+                self.logger.print(f"{batch_index + 1}/{train_batch}")
+                self.logger.push()
 
                 self.optimizer.zero_grad(set_to_none=False)
                 w = self.model.backward(train_losses, **self.kwargs['weight_args'])
                 if w is not None:
                     self.batch_weight[:, epoch, batch_index] = w
                 self.optimizer.step()
+                self.aux_optimizer.zero_grad(set_to_none=False)
+                aux_loss.backward()
+                self.aux_optimizer.step()
 
             self.meter.record_time('end')
             self.meter.get_score()
@@ -234,8 +259,10 @@ class Trainer(nn.Module):
             if self.scheduler is not None:
                 if self.scheduler_param['scheduler'] == 'reduce' and val_dataloaders is not None:
                     self.scheduler.step(val_improvement)
+                    self.aux_scheduler.step(val_improvement)
                 else:
                     self.scheduler.step()
+                    self.aux_scheduler.step()
             # if self.save_path is not None and self.meter.best_result['epoch'] == epoch:
             torch.save(self.model.state_dict(), os.path.join(self.save_path, 'best.pt'))
             print('Save Model {} to {}'.format(epoch, os.path.join(self.save_path, 'best.pt')))
@@ -257,24 +284,13 @@ class Trainer(nn.Module):
         self.model.eval()
         self.meter.record_time('begin')
         with torch.no_grad():
-            if not self.multi_input:
-                for batch_index in range(test_batch):
-                    test_inputs, test_gts = self._process_data(test_loader)
-                    test_inputs, test_gts = self.augment_data(test_inputs)
-                    test_preds = self.model(test_inputs)
-                    test_preds = self.process_preds(test_preds)
-                    test_losses = self._compute_loss(test_preds, test_gts)
-                    self.meter.update(test_preds, test_gts)
-                    self.logger.print(f"{batch_index + 1}/{test_batch}")
-            else:
-                for tn, task in enumerate(self.task_name):
-                    for batch_index in range(test_batch[tn]):
-                        test_input, test_gt = self._process_data(test_loader[task])
-                        test_pred = self.model(test_input, task)
-                        test_pred = test_pred[task]
-                        test_pred = self.process_preds(test_pred)
-                        test_loss = self._compute_loss(test_pred, test_gt, task)
-                        self.meter.update(test_pred, test_gt, task)
+            for batch_index in range(test_batch):
+                test_inputs, test_gts = self._process_data(test_loader)
+                test_inputs, test_gts = self.augment_data(test_inputs)
+                test_preds = self.model(test_inputs)
+                self.meter.update(test_preds, test_gts)
+                self.logger.print(f"{batch_index + 1}/{test_batch}")
+
         self.meter.record_time('end')
         results = self.meter.get_score()
         for task in self.task_name:
