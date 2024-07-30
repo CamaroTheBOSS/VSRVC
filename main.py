@@ -7,7 +7,7 @@ from config import MyLibMTL_args, prepare_args
 from trainer import Trainer
 from metrics import CompressionTaskMetrics, RateDistortionLoss, QualityMetrics, VSRLoss
 import wandb
-from training_configs import vsrvc, vsrvc_residual
+from training_configs import vsrvc, vsrvc_residual, vsrvc_motion_residual
 
 
 def parse_args(parser):
@@ -24,14 +24,21 @@ def parse_args(parser):
     return parser.parse_args()
 
 
+def get_run_name(params):
+    return f"{params.model_type} {params.lmbda}"
+
+
 def main(params):
     kwargs, optim_param, scheduler_param = prepare_args(params)
     if params.model_type == "vsrvc":
-        train_set, test_set, encoder_class, decoders, kwargs, decoder_kwargs, model_type = vsrvc(params, kwargs)
+        f = vsrvc
     elif params.model_type == "vsrvc_res":
-        train_set, test_set, encoder_class, decoders, kwargs, decoder_kwargs, model_type = vsrvc_residual(params, kwargs)
+        f = vsrvc_residual
+    elif params.model_type == "vsrvc_res_mv":
+        f = vsrvc_motion_residual
     else:
         raise ValueError("Unrecognized model_type. Supported ones are: vsrvc, vsrvc_res")
+    train_set, test_set, encoder_class, decoders, kwargs, decoder_kwargs, model_type = f(params, kwargs)
     params.save_path = os.path.join(params.save_path, f"{params.model_type} l={params.lmbda}")
     train_dataloader = DataLoader(
         train_set,
@@ -62,8 +69,7 @@ def main(params):
     }
 
     if params.enable_wandb:
-        info = ('_RES' if params.model_type == 'vsrvc_res' else f' sw={params.sliding_window}') + f" l={params.lmbda}"
-        run_name = f"VSRVC{info}"
+        run_name = get_run_name(params)
         wandb.init(project="VSRVC", name=run_name)
     my_trainer = Trainer(task_dict=task_dict,
                          weighting=params.weighting,

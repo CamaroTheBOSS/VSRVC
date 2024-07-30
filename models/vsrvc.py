@@ -4,6 +4,52 @@ from torch import nn
 from models.basic_blocks import ResidualBlocksWithInputConv
 from models.head_decoders import PixelShufflePack, ReconstructionHead
 from models.hyperprior_compressor import HyperpriorCompressAI
+from models.motion_blocks import MotionCompensator, MotionEstimator
+
+
+class VSRVCMotionResidualEncoder(nn.Module):
+    def __init__(self,  in_channels: int = 3, mid_channels: int = 64, out_channels: int = 64, num_blocks: int = 3):
+        super(VSRVCMotionResidualEncoder, self).__init__()
+        self.feat_extractor = nn.Sequential(*[
+            nn.Conv2d(in_channels, mid_channels, 5, 2, 2),
+            ResidualBlocksWithInputConv(in_channels=mid_channels, out_channels=mid_channels, num_blocks=num_blocks)
+        ])
+        self.motion_estimator = MotionEstimator(mid_channels, 144)
+        self.motion_compressor = HyperpriorCompressAI(144, mid_channels, 144)
+        self.motion_compensator = MotionCompensator(out_channels)
+
+    def extract_feats(self, x):
+        return self.feat_extractor(x)
+
+    def forward(self, x):
+        B, N, C, H, W = x.size()
+        assert (N == 2)
+        prev_feat = self.extract_feats(x[:, 0])
+        curr_feat = self.extract_feats(x[:, 1])
+        offsets = self.motion_estimator(prev_feat, curr_feat)
+        decompressed_offsets, p_bits, hp_bits = self.motion_compressor.train_compression_decompression(offsets)
+        aligned_features = self.motion_compensator(prev_feat, decompressed_offsets)
+        return [(aligned_features, curr_feat, p_bits, hp_bits), (aligned_features, x[:, -1])]
+
+
+class VCMotionResidualDecoder(nn.Module):
+    def __init__(self, in_channels: int, mid_channels: int):
+        super(VCMotionResidualDecoder, self).__init__()
+        self.compressor = HyperpriorCompressAI(in_channels, mid_channels, mid_channels)
+        self.reconstruction_head = ReconstructionHead(in_channels=mid_channels, mid_channels=mid_channels)
+
+    def forward(self, x: torch.Tensor):
+        align_feat, curr_feat, mv_p_bits, mv_hp_bits = x
+        res = curr_feat - align_feat
+        decompressed_data, res_p_bits, res_hp_bits = self.compressor.train_compression_decompression(res)
+        recon_feat = decompressed_data + align_feat
+        recon_frame = self.reconstruction_head(recon_feat)
+        return recon_frame, [res_p_bits, res_hp_bits, mv_p_bits, mv_hp_bits]
+
+
+####################################################################
+####################################################################
+####################################################################
 
 
 class VSRVCResidualEncoder(nn.Module):
@@ -72,7 +118,7 @@ class VCResidualDecoder(nn.Module):
         decompressed_data, prior_bits, hyperprior_bits = self.compressor.train_compression_decompression(res)
         recon_feat = decompressed_data + prev_feat
         recon_frame = self.reconstruction_head(recon_feat)
-        return recon_frame, prior_bits, hyperprior_bits
+        return recon_frame, [prior_bits, hyperprior_bits]
 
 ####################################################################
 ####################################################################
@@ -134,4 +180,4 @@ class ICDecoder(nn.Module):
     def forward(self, x: torch.Tensor):
         decompressed_data, prior_bits, hyperprior_bits = self.compressor.train_compression_decompression(x)
         reconstructed_frame = self.reconstruction_head(decompressed_data)
-        return reconstructed_frame, prior_bits, hyperprior_bits
+        return reconstructed_frame, [prior_bits, hyperprior_bits]

@@ -12,10 +12,10 @@ class RateDistortionLoss(AbsLoss):
         self.lmbda = lmbda
 
     def compute_loss(self, pred, gt):
-        reconstruction, prior_bits, hyperprior_bits = pred
+        reconstruction, bits = pred
         B, _, H, W = reconstruction.shape
         num_pixels = B * H * W
-        bpp_loss = (prior_bits + hyperprior_bits) / num_pixels
+        bpp_loss = sum(bits) / num_pixels
         return_value = self.lmbda * self.distortion(reconstruction, gt) + bpp_loss
         return return_value
 
@@ -70,10 +70,10 @@ class CompressionTaskMetrics(AbsMetric):
         self.bpp_record = []
 
     def update_fun(self, pred, gt):
-        reconstruction, prior_bits, hyperprior_bits = pred
+        reconstruction, bits = pred
         B, _, H, W = reconstruction.shape
         num_pixels = B * H * W
-        bpp = (prior_bits + hyperprior_bits) / num_pixels
+        bpp = sum(bits) / num_pixels
         self.bpp_record.append(bpp)
         self.quality_metrics.update_fun(reconstruction, gt)
         self.bs.append(reconstruction.size()[0])
