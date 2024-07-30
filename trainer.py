@@ -89,8 +89,9 @@ class Trainer(nn.Module):
         count_parameters(self.model)
 
         if self.save_path is not None:
-            if not os.path.exists(self.save_path):
-                os.makedirs(self.save_path)
+            if os.path.exists(self.save_path):
+                raise FileExistsError("Path already exists! Make sure path for saving the model is unique.")
+            os.makedirs(self.save_path)
             model_data = {
                 "task_name": self.task_name,
                 "lmbda": self.lmbda,

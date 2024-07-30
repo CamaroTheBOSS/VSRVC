@@ -29,8 +29,8 @@ def vsrvc(params, kwargs):
         'out_channels': 64,
         'num_blocks': 3,
     }
-
-    return train_set, test_set, encoder_class, decoders, kwargs, decoder_kwargs
+    model_type = "IFrame"
+    return train_set, test_set, encoder_class, decoders, kwargs, decoder_kwargs, model_type
 
 
 def vsrvc_residual(params, kwargs):
@@ -57,5 +57,5 @@ def vsrvc_residual(params, kwargs):
         'out_channels': 64,
         'num_blocks': 3,
     }
-
-    return train_set, test_set, encoder_class, decoders, kwargs, decoder_kwargs
+    model_type = "PFrame"
+    return train_set, test_set, encoder_class, decoders, kwargs, decoder_kwargs, model_type

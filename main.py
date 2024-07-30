@@ -27,11 +27,9 @@ def parse_args(parser):
 def main(params):
     kwargs, optim_param, scheduler_param = prepare_args(params)
     if params.model_type == "vsrvc":
-        train_set, test_set, encoder_class, decoders, kwargs, decoder_kwargs = vsrvc(params, kwargs)
-        model_type = "IFrame"
+        train_set, test_set, encoder_class, decoders, kwargs, decoder_kwargs, model_type = vsrvc(params, kwargs)
     elif params.model_type == "vsrvc_res":
-        train_set, test_set, encoder_class, decoders, kwargs, decoder_kwargs = vsrvc_residual(params, kwargs)
-        model_type = "PFrame"
+        train_set, test_set, encoder_class, decoders, kwargs, decoder_kwargs, model_type = vsrvc_residual(params, kwargs)
     else:
         raise ValueError("Unrecognized model_type. Supported ones are: vsrvc, vsrvc_res")
     params.save_path = os.path.join(params.save_path, f"{params.model_type} l={params.lmbda}")
