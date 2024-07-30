@@ -19,8 +19,8 @@ from scheduler import MyCosineAnnealingLR
 
 
 class Trainer(nn.Module):
-    def __init__(self, task_dict, weighting, architecture, encoder_class, decoders, decoder_kwargs,
-                 rep_grad, multi_input, optim_param, scheduler_param, logging, print_interval, lmbda,
+    def __init__(self, task_dict, weighting, architecture, encoder_class, decoders, decoder_kwargs, rep_grad,
+                 multi_input, optim_param, scheduler_param, logging, print_interval, lmbda, model_type,
                  save_path=None, load_path=None, **kwargs):
         super(Trainer, self).__init__()
 
@@ -36,6 +36,7 @@ class Trainer(nn.Module):
         self.scheduler_param = scheduler_param
         self.save_path = save_path
         self.load_path = load_path
+        self.model_type = model_type
         self.logger = WandbLogger(print_interval, task_dict) if logging else Logger(print_interval, task_dict)
 
         self._prepare_model(weighting, architecture, encoder_class, decoders)
@@ -94,6 +95,7 @@ class Trainer(nn.Module):
                 "task_name": self.task_name,
                 "lmbda": self.lmbda,
                 "encoder_class": encoder_class.__name__,
+                "model_type": self.model_type,
                 "decoders": [
                     {
                         "task": task,

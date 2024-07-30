@@ -1,3 +1,5 @@
+import os
+
 from torch.utils.data import DataLoader
 
 from LibMTL.utils import set_device, set_random_seed
@@ -26,10 +28,13 @@ def main(params):
     kwargs, optim_param, scheduler_param = prepare_args(params)
     if params.model_type == "vsrvc":
         train_set, test_set, encoder_class, decoders, kwargs, decoder_kwargs = vsrvc(params, kwargs)
+        model_type = "IFrame"
     elif params.model_type == "vsrvc_res":
         train_set, test_set, encoder_class, decoders, kwargs, decoder_kwargs = vsrvc_residual(params, kwargs)
+        model_type = "PFrame"
     else:
         raise ValueError("Unrecognized model_type. Supported ones are: vsrvc, vsrvc_res")
+    params.save_path = os.path.join(params.save_path, f"{params.model_type} l={params.lmbda}")
     train_dataloader = DataLoader(
         train_set,
         batch_size=params.batch_size,
@@ -77,6 +82,7 @@ def main(params):
                          logging=params.enable_wandb,
                          print_interval=100,
                          lmbda=params.lmbda,
+                         model_type=model_type,
                          **kwargs)
     if params.mode == 'train':
         my_trainer.train(train_dataloader, test_dataloader, params.epochs)

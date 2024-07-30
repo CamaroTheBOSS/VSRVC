@@ -14,11 +14,14 @@ class VSRVCResidualEncoder(nn.Module):
             ResidualBlocksWithInputConv(in_channels=mid_channels, out_channels=out_channels, num_blocks=num_blocks)
         ])
 
+    def extract_feats(self, x):
+        return self.layers(x)
+
     def forward(self, x):
         B, N, C, H, W = x.size()
-        assert(N == 2)
-        prev_feat = self.layers(x[:, 0])
-        curr_feat = self.layers(x[:, 1])
+        assert (N == 2)
+        prev_feat = self.extract_feats(x[:, 0])
+        curr_feat = self.extract_feats(x[:, 1])
         return [(prev_feat, curr_feat), (prev_feat, curr_feat, x[:, -1])]
 
 

@@ -109,8 +109,18 @@ def get_vsr(data):
     return quality
 
 
+def get_multiple_vsr(eval_files):
+    bilinear = load_alg_database("database.json", "bilinear")
+    vsr_datas = [get_vsr(bilinear)]
+    for eval_file in eval_files:
+        eval_data = load_eval_file(eval_file)
+        vsr_datas.append(get_vsr(eval_data))
+    return vsr_datas
+
+
 if __name__ == "__main__":
-    eval_data = load_eval_file("../weights/isric 1024/eval.json")
-    plot_vc_multiple(["../weights/isric 1024/eval.json", "../weights/vsrvc3 1024/eval.json"],
-                     legend=["ISRIC", "VSRVC3"])
+    eval_files = ["../weights/isric 1024/eval.json", "../weights/vsrvc_res l=128/eval.json"]
+    # plot_vc_multiple(eval_files, legend=["ISRIC", "VSRVC RESIDUAL"])
     plt.show()
+    print(get_multiple_vsr(eval_files))
+
