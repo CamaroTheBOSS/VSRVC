@@ -97,7 +97,7 @@ def load_model(json_file):
         def decompress(self, inputs):
             reconstructed_video = []
             for inp in inputs:
-                reconstructed_video.append(self.decompress_one(inp))
+                reconstructed_video.append(self.decompress_one(inp[0]))
             return torch.stack(reconstructed_video, dim=1)
 
     class PFrameModel(BaseModel):
