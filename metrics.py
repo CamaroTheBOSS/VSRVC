@@ -107,12 +107,13 @@ class UVGMetrics:
         for i in range(len(vc_compress_data)):
             vc_pred = vc_decoded_video[:, i]
             vsr_pred = vsr_sr_video[:, i]
-            compress_data_pred = vc_compress_data[i][:2]
 
             vc_psnr_value = torch.clamp(psnr(vc_pred, vc_gt[:, i]), 0, 255).item()
             vc_ssim_value = torch.clamp(ssim(vc_pred, vc_gt[:, i]), 0, 1).item()
-            bpp_values = [sum(len(s) for s in compress_data_pred[0]) * bpp_const,
-                          sum(len(s) for s in compress_data_pred[1]) * bpp_const]
+            bpp_values = []
+            for j in range(len(vc_compress_data[i])):
+                compress_data_pred = vc_compress_data[i][j][:-1]
+                bpp_values += [sum(len(s) for s in cd) * bpp_const for cd in compress_data_pred]
 
             vsr_psnr_value = torch.clamp(psnr(vsr_pred, vsr_gt[:, i]), 0, 255).item()
             vsr_ssim_value = torch.clamp(ssim(vsr_pred, vsr_gt[:, i]), 0, 1).item()
@@ -255,4 +256,3 @@ def _ssim_videos(input_videos: Tensor, target_videos: Tensor, aggregate: str = "
         return torch.stack(ssim_values)
     raise NotImplementedError(f"Unrecognized aggregation strategy \"{aggregate}\". "
                               f"Possible aggregation strategies: [mean, sum, none].")
-

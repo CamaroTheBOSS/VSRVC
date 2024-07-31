@@ -119,8 +119,11 @@ def get_multiple_vsr(eval_files):
 
 
 if __name__ == "__main__":
-    eval_files = ["../weights/isric 1024/eval.json", "../weights/vsrvc_res l=128/eval.json"]
-    # plot_vc_multiple(eval_files, legend=["ISRIC", "VSRVC RESIDUAL"])
+    eval_files = ["../weights/isric 1024/eval.json",
+                  "../weights/vsrvc_res l=128/eval128_12.json",
+                  "../weights/vsrvc_res_mv l=128/eval128_12.json",
+                  "../weights/vsrvc_res_mv l=128/eval1024_12.json"]
+    plot_vc_multiple(eval_files, legend=["ISRIC", "VSRVC RES 128 12", "VSRVC RES MV 128 12", "VSRVC RES MV 1024 12"])
     plt.show()
     print(get_multiple_vsr(eval_files))
 

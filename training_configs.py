@@ -85,5 +85,5 @@ def vsrvc_motion_residual(params, kwargs):
         'out_channels': 64,
         'num_blocks': 3,
     }
-    model_type = "PFrame"
+    model_type = "PFrameWithMotion"
     return train_set, test_set, encoder_class, decoders, kwargs, decoder_kwargs, model_type
