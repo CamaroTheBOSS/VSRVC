@@ -29,9 +29,11 @@ def load_model(json_file):
     model_type = model_data["model_type"]
     if model_type.startswith("PFrame"):
         if "iframe_model_path" not in model_data["arch_args"].keys():
-            raise KeyError("iframe_model_path key doesn't exist. Please provide path to it manually in model.json")
+            raise KeyError("iframe_model_path key doesn't exist. Please provide path (str) to it manually in model.json")
         if "keyframe_interval" not in model_data["arch_args"].keys():
-            raise KeyError("keyframe_interval key doesn't exist. Please provide value manually in model.json")
+            raise KeyError("keyframe_interval key doesn't exist. Please provide value (int) manually in model.json")
+        if "adaptation" not in model_data["arch_args"].keys():
+            raise KeyError("adaptation key doesn't exist. Please provide value (bool) manually in model.json")
     encoder_class = modules.__dict__[model_data["encoder_class"]]
     decoders = nn.ModuleDict({d["task"]: modules.__dict__[d["module"]](**d["kwargs"]) for d in model_data["decoders"]})
     weighting = weighting_method.__dict__[model_data["weighting"]]
@@ -106,8 +108,35 @@ def load_model(json_file):
             self.lmbda = lmbda
             self.iframe_model: IFrameModel = load_model(kwargs["iframe_model_path"])
             self.keyframe_interval = kwargs["keyframe_interval"]
+            self.adaptation = kwargs["adaptation"]
 
-        def compress(self, video):
+        def compress_with_adaptation(self, video):
+            out = {task: [] for task in self.task_name}
+            prev_recon = None
+            for i in range(0, video.size()[1]):
+                if i % self.keyframe_interval == 0:
+                    inp = video[:, i:i + 1]
+                    results = self.iframe_model.compress_one(inp)
+                    prev_recon = self.iframe_model.decompress_one(results["vc"][0])
+                    for task, value in results.items():
+                        out[task].append(value)
+                    continue
+                inp = video[:, i - 1:i + 1]
+                s_rep = self.encoder.compress(inp, prev_recon)
+                same_rep = True if not isinstance(s_rep, list) and not self.multi_input else False
+                for tn, task in enumerate(self.task_name):
+                    ss_rep = s_rep[tn] if isinstance(s_rep, list) else s_rep
+                    ss_rep = self._prepare_rep(ss_rep, task, same_rep)
+                    if task == "vc":
+                        results = self.decoders[task].compress(ss_rep)
+                        inp = (ss_rep[0],) + results[0]
+                        prev_recon = self.decoders[task].decompress(*inp)
+                        out[task].append(results)
+                    else:
+                        out[task].append(self.decoders[task](ss_rep))
+            return out
+
+        def compress_no_adaptation(self, video):
             out = {task: [] for task in self.task_name}
             for i in range(0, video.size()[1]):
                 if i % self.keyframe_interval == 0:
@@ -128,14 +157,19 @@ def load_model(json_file):
                         out[task].append(self.decoders[task](ss_rep))
             return out
 
+        def compress(self, video):
+            if self.adaptation:
+                return self.compress_with_adaptation(video)
+            return self.compress_no_adaptation(video)
+
         def decompress(self, inputs):
             reconstructed_video = []
             prev_feat = None
             for i, inp in enumerate(inputs):
                 if i % self.keyframe_interval == 0:
-                    recon = self.iframe_model.decompress_one(inp)
+                    recon = self.iframe_model.decompress_one(inp[0])
                 else:
-                    inp = (prev_feat,) + inp
+                    inp = (prev_feat,) + inp[0]
                     recon = self.decoders["vc"].decompress(*inp)
                 prev_feat = self.encoder.extract_feats(recon)
                 reconstructed_video.append(recon)
@@ -149,14 +183,15 @@ def load_model(json_file):
             self.lmbda = lmbda
             self.iframe_model: IFrameModel = load_model(kwargs["iframe_model_path"])
             self.keyframe_interval = kwargs["keyframe_interval"]
+            self.adaptation = kwargs["adaptation"]
 
-        def compress(self, video):
+        def compress_no_adaptation(self, video):
             out = {task: [] for task in self.task_name}
             for i in range(0, video.size()[1]):
                 if i % self.keyframe_interval == 0:
                     inp = video[:, i:i + 1]
                     results = self.iframe_model.compress_one(inp)
-                    results["vc"] = [results["vc"], ('', '', 0)]
+                    results["vc"].append(('', '', 0))
                     for task, value in results.items():
                         out[task].append(value)
                     continue
@@ -171,6 +206,38 @@ def load_model(json_file):
                     else:
                         out[task].append(self.decoders[task](ss_rep))
             return out
+
+        def compress_with_adaptation(self, video):
+            out = {task: [] for task in self.task_name}
+            prev_recon = None
+            for i in range(0, video.size()[1]):
+                if i % self.keyframe_interval == 0:
+                    inp = video[:, i:i + 1]
+                    results = self.iframe_model.compress_one(inp)
+                    prev_recon = self.iframe_model.decompress_one(results["vc"])
+                    results["vc"] = [results["vc"], ('', '', 0)]
+                    for task, value in results.items():
+                        out[task].append(value)
+                    continue
+                inp = video[:, i - 1:i + 1]
+                s_rep = self.encoder.compress_with_prev_recon(prev_recon, inp)
+                same_rep = True if not isinstance(s_rep, list) and not self.multi_input else False
+                for tn, task in enumerate(self.task_name):
+                    ss_rep = s_rep[tn] if isinstance(s_rep, list) else s_rep
+                    ss_rep = self._prepare_rep(ss_rep, task, same_rep)
+                    if task == "vc":
+                        results = self.decoders[task].compress(ss_rep)
+                        inp = (ss_rep[0],) + results[0]
+                        prev_recon = self.decoders[task].decompress(*inp)
+                        out[task].append(results)
+                    else:
+                        out[task].append(self.decoders[task](ss_rep))
+            return out
+
+        def compress(self, video):
+            if self.adaptation:
+                return self.compress_with_adaptation(video)
+            return self.compress_no_adaptation(video)
 
         def decompress(self, inputs):
             reconstructed_video = []

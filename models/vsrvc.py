@@ -21,6 +21,24 @@ class VSRVCMotionResidualEncoder(nn.Module):
     def extract_feats(self, x):
         return self.feat_extractor(x)
 
+    def compress_with_prev_recon(self, prev_recon, x):
+        B, N, C, H, W = x.size()
+        assert (N == 2)
+        prev_feat = self.extract_feats(x[:, 0])
+        curr_feat = self.extract_feats(x[:, 1])
+        prev_recon_feat = self.extract_feats(prev_recon)
+
+        cp_data = []
+        for prev in [prev_feat, prev_recon_feat]:
+            offsets = self.motion_estimator(prev, curr_feat)
+            mv_p_string, mv_hp_string, shape = self.motion_compressor.compress(offsets)
+            recon_offsets = self.motion_compressor.decompress(mv_p_string, mv_hp_string, shape)
+            align_feat = self.motion_compensator(prev, recon_offsets)
+            cp_data.append((align_feat, mv_p_string, mv_hp_string, shape))
+        out_vsr = (cp_data[0][0], x[:, -1])
+        out_vc = (cp_data[1][0], curr_feat,) + cp_data[1][1:]
+        return [out_vc, out_vsr]
+
     def compress(self, x):
         B, N, C, H, W = x.size()
         assert (N == 2)
@@ -91,8 +109,15 @@ class VSRVCResidualEncoder(nn.Module):
             ResidualBlocksWithInputConv(in_channels=mid_channels, out_channels=out_channels, num_blocks=num_blocks)
         ])
 
-    def compress(self, x):
-        return self.forward(x)
+    def compress(self, x, prev_recon=None):
+        B, N, C, H, W = x.size()
+        assert (N == 2)
+        prev_feat = self.extract_feats(x[:, 0])
+        curr_feat = self.extract_feats(x[:, 1])
+        if prev_recon is not None:
+            prev_recon_feat = self.extract_feats(prev_recon)
+            return [(prev_recon_feat, curr_feat), (prev_feat, curr_feat, x[:, -1])]
+        return [(prev_feat, curr_feat), (prev_feat, curr_feat, x[:, -1])]
 
     def extract_feats(self, x):
         return self.layers(x)
@@ -138,7 +163,7 @@ class VCResidualDecoder(nn.Module):
         prev_feat, curr_feat = x
         res = curr_feat - prev_feat
         prior_string, hyperprior_string, shape = self.compressor.compress(res)
-        return prior_string, hyperprior_string, shape
+        return [(prior_string, hyperprior_string, shape)]
 
     def decompress(self, prev_feat, prior_string, hyperprior_string, shape):
         recon_res = self.compressor.decompress(prior_string, hyperprior_string, shape)
@@ -204,7 +229,7 @@ class ICDecoder(nn.Module):
 
     def compress(self, x: torch.Tensor):
         prior_string, hyperprior_string, shape = self.compressor.compress(x)
-        return prior_string, hyperprior_string, shape
+        return [(prior_string, hyperprior_string, shape)]
 
     def decompress(self, prior_string, hyperprior_string, shape):
         reconstructed_features = self.compressor.decompress(prior_string, hyperprior_string, shape)
