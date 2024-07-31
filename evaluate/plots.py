@@ -119,22 +119,26 @@ def get_multiple_vsr(eval_files):
 
 
 if __name__ == "__main__":
-    eval_files = ["../weights/isric 1024/eval.json",
-                  "../weights/vsrvc_res l=128/eval128_12.json",
-                  "../weights/vsrvc_res_mv l=128/eval128_12.json",
-                  "../weights/vsrvc_res_mv l=128/eval1024_12.json",
-                  "../weights/vsrvc_res l=128/eval128_12_adapt.json",
-                  "../weights/vsrvc_res_mv l=128/eval128_12_adapt.json",
-                  "../weights/vsrvc_res_mv l=128/eval1024_12_adapt.json",
-                  ]
-    plot_vc_multiple(eval_files, legend=["ISRIC 1024",
-                                         "VSRVC RES 128 12",
-                                         "VSRVC RES MV 128 12",
-                                         "VSRVC RES MV 1024 12",
-                                         "VSRVC RES 128 12 adapt",
-                                         "VSRVC RES MV 128 12 adapt",
-                                         "VSRVC RES MV 1024 12 adapt",
-                                         ])
+    eval_files = [
+        "../weights/isric 128/eval.json",
+        "../weights/isric 1024/eval.json",
+        "../weights/vsrvc_res l=128/eval128_12.json",
+        "../weights/vsrvc_res_mv l=128/eval128_12.json",
+        "../weights/vsrvc_res_mv l=128/eval1024_12.json",
+        "../weights/vsrvc_res l=128/eval128_12_adapt.json",
+        "../weights/vsrvc_res_mv l=128/eval128_12_adapt.json",
+        "../weights/vsrvc_res_mv l=128/eval1024_12_adapt.json",
+    ]
+    legend = [
+        "ISRIC 128",
+        "ISRIC 1024",
+        "VSRVC RES 128 12",
+        "VSRVC RES MV 128 12",
+        "VSRVC RES MV 1024 12",
+        "VSRVC RES 128 12 adapt",
+        "VSRVC RES MV 128 12 adapt",
+        "VSRVC RES MV 1024 12 adapt",
+    ]
+    plot_vc_multiple(eval_files, legend=legend)
     plt.show()
     print(get_multiple_vsr(eval_files))
-

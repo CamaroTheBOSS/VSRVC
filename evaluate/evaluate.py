@@ -36,17 +36,17 @@ def _eval_example(model, dataset, index, meter=None, results=None, save_root=Non
 
 
 @torch.no_grad()
-def eval_one(model_root: str, index, save_root=None):
+def eval_one(model_root: str, index, cfg=None, save_root=None):
     dataset = UVGDataset("../../Datasets/UVG", 2)
-    model = load_model(model_root)
+    model = load_model(model_root, cfg)
     results = _eval_example(model, dataset, index, save_root=save_root)
     return results
 
 
 @torch.no_grad()
-def eval_all(model_root: str):
+def eval_all(model_root: str, cfg=None):
     uvg_set = UVGDataset("../../Datasets/UVG", 2)
-    model = load_model(model_root)
+    model = load_model(model_root, cfg)
     meter = UVGMetrics()
     results = {"vc_psnr": [], "vc_ssim": [], "vsr_psnr": [], "vsr_ssim": [], "bpp": []}
     for index in range(len(uvg_set)):
@@ -58,5 +58,10 @@ def eval_all(model_root: str):
 
 if __name__ == "__main__":
     set_random_seed(777)
-    eval_all("../weights/isric 128")
-    # eval_one("../weights/vsrvc_res_mv l=128", 5, "../weights/vsrvc_res_mv l=128")
+    eval_cfg = {
+        "iframe_model_path": "D:\\Code\\VSRVC_LibMTL\\weights\\isric 128",
+        "keyframe_interval": 12,
+        "adaptation": True
+    }
+    # eval_all("../weights/vsrvc_res_mv l=128", eval_cfg)
+    eval_one("../weights/vsrvc_res_mv l=128", 5, eval_cfg, "../weights/vsrvc_res_mv l=128")

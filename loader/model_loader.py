@@ -21,19 +21,21 @@ def get_scale_table(min=SCALES_MIN, max=SCALES_MAX, levels=SCALES_LEVELS):
     return torch.exp(torch.linspace(math.log(min), math.log(max), levels))
 
 
-def load_model(json_file):
+def load_model(json_file, cfg=None):
+    if cfg is None:
+        cfg = {}
     if os.path.isdir(json_file):
         json_file = os.path.join(json_file, "model.json")
     with open(json_file, "r") as f:
         model_data = json.load(f)
     model_type = model_data["model_type"]
     if model_type.startswith("PFrame"):
-        if "iframe_model_path" not in model_data["arch_args"].keys():
-            raise KeyError("iframe_model_path key doesn't exist. Please provide path (str) to it manually in model.json")
-        if "keyframe_interval" not in model_data["arch_args"].keys():
-            raise KeyError("keyframe_interval key doesn't exist. Please provide value (int) manually in model.json")
-        if "adaptation" not in model_data["arch_args"].keys():
-            raise KeyError("adaptation key doesn't exist. Please provide value (bool) manually in model.json")
+        if "iframe_model_path" not in cfg.keys():
+            raise KeyError("iframe_model_path key doesn't exist. Please provide path (str) to it in config")
+        if "keyframe_interval" not in cfg.keys():
+            raise KeyError("keyframe_interval key doesn't exist. Please provide value (int) in config")
+        if "adaptation" not in cfg.keys():
+            raise KeyError("adaptation key doesn't exist. Please provide value (bool) in config")
     encoder_class = modules.__dict__[model_data["encoder_class"]]
     decoders = nn.ModuleDict({d["task"]: modules.__dict__[d["module"]](**d["kwargs"]) for d in model_data["decoders"]})
     weighting = weighting_method.__dict__[model_data["weighting"]]
@@ -41,9 +43,10 @@ def load_model(json_file):
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
     class BaseModel(architecture, weighting):
-        def __init__(self, task_name, encoder_class, decoders, rep_grad, multi_input, device, kwargs):
+        def __init__(self, task_name, encoder_class, decoders, rep_grad, multi_input, device, kwargs, cfg):
             super(BaseModel, self).__init__(task_name, encoder_class, decoders, rep_grad, multi_input, device,
                                             **kwargs)
+            self.cfg = cfg
 
         def compress(self, x):
             pass
@@ -63,9 +66,9 @@ def load_model(json_file):
             return updated
 
     class IFrameModel(BaseModel):
-        def __init__(self, task_name, encoder_class, decoders, rep_grad, multi_input, device, lmbda, kwargs):
+        def __init__(self, task_name, encoder_class, decoders, rep_grad, multi_input, device, lmbda, kwargs, cfg):
             super(IFrameModel, self).__init__(task_name, encoder_class, decoders, rep_grad, multi_input, device,
-                                              kwargs)
+                                              kwargs, cfg)
             self.init_param()
             self.lmbda = lmbda
 
@@ -101,14 +104,14 @@ def load_model(json_file):
             return torch.stack(reconstructed_video, dim=1)
 
     class PFrameModel(BaseModel):
-        def __init__(self, task_name, encoder_class, decoders, rep_grad, multi_input, device, lmbda, kwargs):
+        def __init__(self, task_name, encoder_class, decoders, rep_grad, multi_input, device, lmbda, kwargs, cfg):
             super(PFrameModel, self).__init__(task_name, encoder_class, decoders, rep_grad, multi_input, device,
-                                              kwargs)
+                                              kwargs, cfg)
             self.init_param()
             self.lmbda = lmbda
-            self.iframe_model: IFrameModel = load_model(kwargs["iframe_model_path"])
-            self.keyframe_interval = kwargs["keyframe_interval"]
-            self.adaptation = kwargs["adaptation"]
+            self.iframe_model: IFrameModel = load_model(cfg["iframe_model_path"])
+            self.keyframe_interval = cfg["keyframe_interval"]
+            self.adaptation = cfg["adaptation"]
 
         def compress_with_adaptation(self, video):
             out = {task: [] for task in self.task_name}
@@ -176,14 +179,14 @@ def load_model(json_file):
             return torch.stack(reconstructed_video, dim=1)
 
     class PFrameModelWithMotion(BaseModel):
-        def __init__(self, task_name, encoder_class, decoders, rep_grad, multi_input, device, lmbda, kwargs):
+        def __init__(self, task_name, encoder_class, decoders, rep_grad, multi_input, device, lmbda, kwargs, cfg):
             super(PFrameModelWithMotion, self).__init__(task_name, encoder_class, decoders, rep_grad, multi_input,
-                                                        device, kwargs)
+                                                        device, kwargs, cfg)
             self.init_param()
             self.lmbda = lmbda
-            self.iframe_model: IFrameModel = load_model(kwargs["iframe_model_path"])
-            self.keyframe_interval = kwargs["keyframe_interval"]
-            self.adaptation = kwargs["adaptation"]
+            self.iframe_model: IFrameModel = load_model(cfg["iframe_model_path"])
+            self.keyframe_interval = cfg["keyframe_interval"]
+            self.adaptation = cfg["adaptation"]
 
         def compress_no_adaptation(self, video):
             out = {task: [] for task in self.task_name}
@@ -261,7 +264,8 @@ def load_model(json_file):
                   multi_input=model_data["multi_input"],
                   device=device,
                   lmbda=model_data["lmbda"],
-                  kwargs=model_data['arch_args'])
+                  kwargs=model_data['arch_args'],
+                  cfg=cfg)
     supported_model_types = ['IFrame', 'PFrame', 'PFrameWithMotion']
     if model_type == "IFrame":
         model = IFrameModel(**kwargs).to(device)
@@ -276,5 +280,5 @@ def load_model(json_file):
     model.load_state_dict(torch.load(model_data["checkpoint"]), strict=strict)
     model.eval()
     model.update(force=True)
-
+    print(f"Model loaded with cfg: {cfg}")
     return model
