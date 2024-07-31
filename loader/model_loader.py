@@ -214,8 +214,8 @@ def load_model(json_file):
                 if i % self.keyframe_interval == 0:
                     inp = video[:, i:i + 1]
                     results = self.iframe_model.compress_one(inp)
-                    prev_recon = self.iframe_model.decompress_one(results["vc"])
-                    results["vc"] = [results["vc"], ('', '', 0)]
+                    prev_recon = self.iframe_model.decompress_one(results["vc"][0])
+                    results["vc"].extend([('', '', 0)])
                     for task, value in results.items():
                         out[task].append(value)
                     continue
