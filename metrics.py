@@ -113,7 +113,7 @@ class UVGMetrics:
             bpp_values = []
             for j in range(len(vc_compress_data[i])):
                 compress_data_pred = vc_compress_data[i][j][:-1]
-                bpp_values += [sum(len(s) for s in cd) * bpp_const for cd in compress_data_pred]
+                bpp_values += [len(s[0]) * bpp_const for s in compress_data_pred]
 
             vsr_psnr_value = torch.clamp(psnr(vsr_pred, vsr_gt[:, i]), 0, 255).item()
             vsr_ssim_value = torch.clamp(ssim(vsr_pred, vsr_gt[:, i]), 0, 1).item()

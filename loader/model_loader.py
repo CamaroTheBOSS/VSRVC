@@ -4,12 +4,15 @@ import os
 
 import torch
 from torch import nn
+from torchvision.transforms import ToTensor
 
 import loader as modules
 from compressai.entropy_models import EntropyBottleneck, GaussianConditional
+from PIL import Image
 
 import LibMTL.weighting as weighting_method
 import LibMTL.architecture as architecture_method
+from utils import save_frame
 
 SCALES_MIN = 0.11
 SCALES_MAX = 256
@@ -19,6 +22,41 @@ SCALES_LEVELS = 64
 def get_scale_table(min=SCALES_MIN, max=SCALES_MAX, levels=SCALES_LEVELS):
     """Returns table of logarithmically scales."""
     return torch.exp(torch.linspace(math.log(min), math.log(max), levels))
+
+
+class ByteSize:
+    def __init__(self, size):
+        self.size = size
+
+    def __len__(self):
+        return self.size
+
+
+class KeyFrameModel(nn.Module):
+    def __init__(self, cfg, device):
+        super(KeyFrameModel, self).__init__()
+        self.compress = cfg["keyframe_compress_type"]
+        self.save_root = cfg["keyframe_save_root"]
+        self.kf_counter = 0
+        self.supported_compress_types = ["jpg", "png"]
+        self.device = device
+        self.to(device)
+
+    def compress_one(self, inputs):
+        if self.compress not in ["jpg", "png"]:
+            raise ValueError(f"Unrecognized keyframe_compress_type. Supported are {self.supported_compress_types}")
+        filepath = os.path.join(self.save_root, f"kf_{self.kf_counter}.{self.compress}")
+        save_frame(filepath, inputs[0, 0])
+        byte_size = os.stat(filepath).st_size
+        self.kf_counter += 1
+        return [([ByteSize(byte_size)], [''], filepath)]
+
+    def decompress_one(self, inputs):
+        if self.compress not in ["jpg", "png"]:
+            raise ValueError(f"Unrecognized keyframe_compress_type. Supported are {self.supported_compress_types}")
+        path = inputs[2]
+        recon = ToTensor()(Image.open(path).convert("RGB")).to(self.device)
+        return recon.unsqueeze(0)
 
 
 def load_model(json_file, cfg=None):
@@ -109,6 +147,9 @@ def load_model(json_file, cfg=None):
                                               kwargs, cfg)
             self.init_param()
             self.lmbda = lmbda
+            self.kf_model = None
+            if "keyframe_compress_type" in cfg.keys():
+                self.kf_model = KeyFrameModel(cfg, device)
             self.iframe_model: IFrameModel = load_model(cfg["iframe_model_path"])
             self.keyframe_interval = cfg["keyframe_interval"]
             self.adaptation = cfg["adaptation"]
@@ -120,7 +161,11 @@ def load_model(json_file, cfg=None):
                 if i % self.keyframe_interval == 0:
                     inp = video[:, i:i + 1]
                     results = self.iframe_model.compress_one(inp)
-                    prev_recon = self.iframe_model.decompress_one(results["vc"][0])
+                    if self.kf_model is not None:
+                        results["vc"] = self.kf_model.compress_one(inp)
+                        prev_recon = self.kf_model.decompress_one(results["vc"][0])
+                    else:
+                        prev_recon = self.iframe_model.decompress_one(results["vc"][0])
                     for task, value in results.items():
                         out[task].append(value)
                     continue
@@ -145,6 +190,8 @@ def load_model(json_file, cfg=None):
                 if i % self.keyframe_interval == 0:
                     inp = video[:, i:i + 1]
                     results = self.iframe_model.compress_one(inp)
+                    if self.kf_model is not None:
+                        results["vc"] = self.kf_model.compress_one(inp)
                     for task, value in results.items():
                         out[task].append(value)
                     continue
@@ -170,7 +217,10 @@ def load_model(json_file, cfg=None):
             prev_feat = None
             for i, inp in enumerate(inputs):
                 if i % self.keyframe_interval == 0:
-                    recon = self.iframe_model.decompress_one(inp[0])
+                    if self.kf_model is not None:
+                        recon = self.kf_model.decompress_one(inp[0])
+                    else:
+                        recon = self.iframe_model.decompress_one(inp[0])
                 else:
                     inp = (prev_feat,) + inp[0]
                     recon = self.decoders["vc"].decompress(*inp)
@@ -184,6 +234,9 @@ def load_model(json_file, cfg=None):
                                                         device, kwargs, cfg)
             self.init_param()
             self.lmbda = lmbda
+            self.kf_model = None
+            if "keyframe_compress_type" in cfg.keys():
+                self.kf_model = KeyFrameModel(cfg, device)
             self.iframe_model: IFrameModel = load_model(cfg["iframe_model_path"])
             self.keyframe_interval = cfg["keyframe_interval"]
             self.adaptation = cfg["adaptation"]
@@ -194,7 +247,9 @@ def load_model(json_file, cfg=None):
                 if i % self.keyframe_interval == 0:
                     inp = video[:, i:i + 1]
                     results = self.iframe_model.compress_one(inp)
-                    results["vc"].append(('', '', 0))
+                    if self.kf_model is not None:
+                        results["vc"] = self.kf_model.compress_one(inp)
+                    results["vc"].append(([''], [''], 0))
                     for task, value in results.items():
                         out[task].append(value)
                     continue
@@ -217,8 +272,12 @@ def load_model(json_file, cfg=None):
                 if i % self.keyframe_interval == 0:
                     inp = video[:, i:i + 1]
                     results = self.iframe_model.compress_one(inp)
-                    prev_recon = self.iframe_model.decompress_one(results["vc"][0])
-                    results["vc"].extend([('', '', 0)])
+                    if self.kf_model is not None:
+                        results["vc"] = self.kf_model.compress_one(inp)
+                        prev_recon = self.kf_model.decompress_one(results["vc"][0])
+                    else:
+                        prev_recon = self.iframe_model.decompress_one(results["vc"][0])
+                    results["vc"].extend([([''], [''], 0)])
                     for task, value in results.items():
                         out[task].append(value)
                     continue
@@ -247,7 +306,10 @@ def load_model(json_file, cfg=None):
             prev_feat = None
             for i, inp in enumerate(inputs):
                 if i % self.keyframe_interval == 0:
-                    recon = self.iframe_model.decompress_one(inp[0])
+                    if self.kf_model is not None:
+                        recon = self.kf_model.decompress_one(inp[0])
+                    else:
+                        recon = self.iframe_model.decompress_one(inp[0])
                 else:
                     recon_offsets = self.encoder.decompress(*inp[1])
                     align_feat = self.encoder.align_features(prev_feat, recon_offsets)

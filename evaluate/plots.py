@@ -128,6 +128,7 @@ if __name__ == "__main__":
         "../weights/vsrvc_res l=128/eval128_12_adapt.json",
         "../weights/vsrvc_res_mv l=128/eval128_12_adapt.json",
         "../weights/vsrvc_res_mv l=128/eval1024_12_adapt.json",
+        "../weights/vsrvc_res_mv l=128/eval jpg 12 adapt.json"
     ]
     legend = [
         "ISRIC 128",
@@ -138,6 +139,7 @@ if __name__ == "__main__":
         "VSRVC RES 128 12 adapt",
         "VSRVC RES MV 128 12 adapt",
         "VSRVC RES MV 1024 12 adapt",
+        "VSRVC RES MV JPG 12 adapt"
     ]
     plot_vc_multiple(eval_files, legend=legend)
     plt.show()

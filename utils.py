@@ -1,6 +1,7 @@
 import os
 import shutil
 from typing import Tuple
+from PIL import Image
 
 import cv2
 import numpy as np
@@ -18,6 +19,19 @@ def show_frame(frame: torch.Tensor):
     cv2_frame = to_cv2(frame[indexes])
     cv2.imshow("", cv2_frame)
     cv2.waitKey(0)
+
+
+def save_frame(filepath: str, frame: torch.Tensor):
+    indexes = (0,) * (len(frame.shape) - 3) + (slice(None),)
+    saved_frame = np.clip(frame[indexes].detach().cpu().permute(1, 2, 0).numpy() * 255., 0, 255).astype(np.uint8)
+    saved_format = filepath[-3:]
+
+    if saved_format == "png":
+        cv2.imwrite(filepath, cv2.cvtColor(saved_frame, cv2.COLOR_RGB2BGR))
+        return
+    elif saved_format == "jpg":
+        saved_frame = Image.fromarray(saved_frame)
+        saved_frame.save(filepath, format="JPEG", quality=95)
 
 
 def save_video(video: torch.Tensor, root: str, name: str = "vid") -> None:

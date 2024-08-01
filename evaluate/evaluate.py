@@ -9,6 +9,20 @@ from metrics import UVGMetrics
 from utils import save_video
 
 
+def get_eval_filename(cfg: dict):
+    name = "eval"
+    if 'iframe_model_path' in cfg.keys():
+        if 'keyframe_compress_type' in cfg.keys():
+            name += ' ' + cfg['keyframe_compress_type']
+        else:
+            name += ' ' + cfg['iframe_model_path'].split(' ')[-1]
+    if 'keyframe_interval' in cfg.keys():
+        name += ' ' + str(cfg['keyframe_interval'])
+    if 'adaptation' in cfg.keys():
+        name += ' ' + ('adapt' if cfg['adaptation'] else '')
+    return name + ".json"
+
+
 @torch.no_grad()
 def _eval_example(model, dataset, index, meter=None, results=None, save_root=None):
     if meter is None:
@@ -45,23 +59,27 @@ def eval_one(model_root: str, index, cfg=None, save_root=None):
 
 @torch.no_grad()
 def eval_all(model_root: str, cfg=None):
+    if cfg is None:
+        cfg = {}
     uvg_set = UVGDataset("../../Datasets/UVG", 2)
     model = load_model(model_root, cfg)
     meter = UVGMetrics()
     results = {"vc_psnr": [], "vc_ssim": [], "vsr_psnr": [], "vsr_ssim": [], "bpp": []}
     for index in range(len(uvg_set)):
         results = _eval_example(model, uvg_set, index, meter=meter, results=results)
-
-    with open(os.path.join(model_root, "eval.json"), "w") as f:
+    results["meta"] = cfg
+    with open(os.path.join(model_root, get_eval_filename(cfg)), "w") as f:
         json.dump(results, f)
 
 
 if __name__ == "__main__":
     set_random_seed(777)
     eval_cfg = {
+        "keyframe_compress_type": "jpg",
+        "keyframe_save_root": "../weights/kfs",
         "iframe_model_path": "D:\\Code\\VSRVC_LibMTL\\weights\\isric 128",
         "keyframe_interval": 12,
         "adaptation": True
     }
-    # eval_all("../weights/vsrvc_res_mv l=128", eval_cfg)
-    eval_one("../weights/vsrvc_res_mv l=128", 5, eval_cfg, "../weights/vsrvc_res_mv l=128")
+    eval_all("../weights/vsrvc_res_mv l=128", eval_cfg)
+    # eval_one("../weights/vsrvc_res_mv l=128", 5, eval_cfg, "../weights/vsrvc_res_mv l=128")
