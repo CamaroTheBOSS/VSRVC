@@ -8,20 +8,21 @@ from models.vsrvc import ICDecoder, ISRDecoder, VSRVCEncoder, VCResidualDecoder,
 def vsrvc(params, kwargs):
     train_set = Vimeo90k("../Datasets/VIMEO90k", params.scale, sliding_window_size=params.sliding_window)
     test_set = Vimeo90k("../Datasets/VIMEO90k", params.scale, test_mode=True, sliding_window_size=params.sliding_window)
-    decoder_kwargs = {
-        'vc': {
-            'in_channels': 64,
-            'mid_channels': 64,
-        },
-        'vsr': {
+    decoder_kwargs = {}
+    decoders = {}
+    if params.vc:
+        decoder_kwargs["vc"] = {
             'in_channels': 64,
             'mid_channels': 64,
         }
-    }
-    decoders = nn.ModuleDict({
-        'vc': ICDecoder(**decoder_kwargs['vc']),
-        'vsr': ISRDecoder(**decoder_kwargs['vsr'])
-    })
+        decoders["vc"] = ICDecoder(**decoder_kwargs['vc'])
+    if params.vsr:
+        decoder_kwargs["vsr"] = {
+            'in_channels': 64,
+            'mid_channels': 64,
+        }
+        decoders["vsr"] = ISRDecoder(**decoder_kwargs['vsr'])
+    decoders = nn.ModuleDict(decoders)
     encoder_class = VSRVCEncoder
     kwargs["arch_args"]["encoder_kwargs"] = {
         'sliding_window': params.sliding_window,
@@ -36,20 +37,21 @@ def vsrvc(params, kwargs):
 def vsrvc_residual(params, kwargs):
     train_set = Vimeo90k("../Datasets/VIMEO90k", params.scale, sliding_window_size=2)
     test_set = Vimeo90k("../Datasets/VIMEO90k", params.scale, test_mode=True, sliding_window_size=2)
-    decoder_kwargs = {
-        'vc': {
-            'in_channels': 64,
-            'mid_channels': 64,
-        },
-        'vsr': {
+    decoder_kwargs = {}
+    decoders = {}
+    if params.vc:
+        decoder_kwargs["vc"] = {
             'in_channels': 64,
             'mid_channels': 64,
         }
-    }
-    decoders = nn.ModuleDict({
-        'vc': VCResidualDecoder(**decoder_kwargs['vc']),
-        'vsr': VSRResidualDecoder(**decoder_kwargs['vsr'])
-    })
+        decoders["vc"] = VCResidualDecoder(**decoder_kwargs['vc'])
+    if params.vsr:
+        decoder_kwargs["vsr"] = {
+            'in_channels': 64,
+            'mid_channels': 64,
+        }
+        decoders["vsr"] = VSRResidualDecoder(**decoder_kwargs['vsr'])
+    decoders = nn.ModuleDict(decoders)
     encoder_class = VSRVCResidualEncoder
     kwargs["arch_args"]["encoder_kwargs"] = {
         'in_channels': 3,
@@ -64,20 +66,21 @@ def vsrvc_residual(params, kwargs):
 def vsrvc_motion_residual(params, kwargs):
     train_set = Vimeo90k("../Datasets/VIMEO90k", params.scale, sliding_window_size=2)
     test_set = Vimeo90k("../Datasets/VIMEO90k", params.scale, test_mode=True, sliding_window_size=2)
-    decoder_kwargs = {
-        'vc': {
-            'in_channels': 64,
-            'mid_channels': 64,
-        },
-        'vsr': {
+    decoder_kwargs = {}
+    decoders = {}
+    if params.vc:
+        decoder_kwargs["vc"] = {
             'in_channels': 64,
             'mid_channels': 64,
         }
-    }
-    decoders = nn.ModuleDict({
-        'vc': VCMotionResidualDecoder(**decoder_kwargs['vc']),
-        'vsr': ISRDecoder(**decoder_kwargs['vsr'])
-    })
+        decoders["vc"] = VCMotionResidualDecoder(**decoder_kwargs['vc'])
+    if params.vsr:
+        decoder_kwargs["vsr"] = {
+            'in_channels': 64,
+            'mid_channels': 64,
+        }
+        decoders["vsr"] = ISRDecoder(**decoder_kwargs['vsr'])
+    decoders = nn.ModuleDict(decoders)
     encoder_class = VSRVCMotionResidualEncoder
     kwargs["arch_args"]["encoder_kwargs"] = {
         'in_channels': 3,

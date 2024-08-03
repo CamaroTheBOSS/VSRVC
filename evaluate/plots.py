@@ -16,7 +16,8 @@ def load_eval_file(eval_file):
     with open(eval_file) as f:
         data = json.load(f)
     for key, value in data.items():
-        data[key] = np.array(value)
+        if not key == "meta":
+            data[key] = np.array(value)
     return data
 
 
@@ -86,13 +87,13 @@ def plot_vc(data, metric="psnr", fig=None, mode="normal", linestyle="-", color="
     return _plot_vc_2d(data, **kwargs) if len(data["vc_psnr"].shape) == 2 else _plot_vc_3d(data, **kwargs)
 
 
-def plot_vc_multiple(eval_files, linestyles=None, colors=None, legend=None, mode="normal", metric="psnr"):
+def plot_vc_multiple(eval_files, database_path, linestyles=None, colors=None, legend=None, mode="normal", metric="psnr"):
     if linestyles is None:
         linestyles = get_plot_linestyles()[:len(eval_files)]
     if colors is None:
         colors = get_plot_colors()[:len(eval_files)]
-    hevc_data = load_alg_database("database.json", "hevc")
-    avc_data = load_alg_database("database.json", "avc")
+    hevc_data = load_alg_database(database_path, "hevc")
+    avc_data = load_alg_database(database_path, "avc")
     fig, _ = plot_vc(avc_data, mode=mode, metric=metric, linestyle="-", color="#E69F00")
     plot_vc(hevc_data, fig=fig, mode=mode, metric=metric, linestyle="-", color="#D55E00")
     for i, eval_file in enumerate(eval_files):
@@ -119,6 +120,7 @@ def get_multiple_vsr(eval_files):
 
 
 if __name__ == "__main__":
+    database = "./database_UVG_veryslow.json"
     eval_files = [
         "../weights/isric 128/eval.json",
         "../weights/isric 1024/eval.json",
@@ -141,6 +143,7 @@ if __name__ == "__main__":
         "VSRVC RES MV 1024 12 adapt",
         "VSRVC RES MV JPG 12 adapt"
     ]
-    plot_vc_multiple(eval_files, legend=legend)
+    plot_vc_multiple(eval_files, database, legend=legend)
+    plt.xlim([0, 0.5])
     plt.show()
     print(get_multiple_vsr(eval_files))

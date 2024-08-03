@@ -21,11 +21,16 @@ def parse_args(parser):
     parser.add_argument('--sliding_window', default=1, type=int, help='sliding window size for processing video by '
                                                                       'encoder')
     parser.add_argument('--model_type', default="vsrvc", type=str, help='trained model type, options: vsrvc, vsrvc_res')
+    parser.add_argument('--vsr', action='store_true', default=False, help='whether to train VSR')
+    parser.add_argument('--vc', action='store_true', default=False, help='whether to train VC')
     return parser.parse_args()
 
 
 def get_run_name(params):
-    return f"{params.model_type} {params.lmbda}"
+    prefix = ('VSR' if params.vsr else '') + ('VC' if params.vc else '')
+    model_type = ' res ' if params.model_type == "vsrvc_res" else ' '
+    model_type = ' mv ' if params.model_type == "vsrvc_res_mv" else ' '
+    return f"{prefix}{model_type}{params.lmbda}"
 
 
 def main(params):
@@ -39,7 +44,8 @@ def main(params):
     else:
         raise ValueError("Unrecognized model_type. Supported ones are: vsrvc, vsrvc_res")
     train_set, test_set, encoder_class, decoders, kwargs, decoder_kwargs, model_type = f(params, kwargs)
-    params.save_path = os.path.join(params.save_path, f"{params.model_type} l={params.lmbda}")
+    run_name = get_run_name(params)
+    params.save_path = os.path.join(params.save_path, run_name)
     train_dataloader = DataLoader(
         train_set,
         batch_size=params.batch_size,
@@ -57,19 +63,18 @@ def main(params):
         drop_last=True,
     )
     # define tasks
-    task_dict = {
-        'vc': {'metrics': ['psnr', 'ssim', 'bpp'],
-               'metrics_fn': CompressionTaskMetrics(),
-               'loss_fn': RateDistortionLoss(params.lmbda),
-               'weight': [1, 1, 0]},
-        'vsr': {'metrics': ['psnr', 'ssim'],
-                'metrics_fn': QualityMetrics(),
-                'loss_fn': VSRLoss(params.lmbda),
-                'weight': [1, 1]},
-    }
-
+    task_dict = {}
+    if params.vc:
+        task_dict["vc"] = {'metrics': ['psnr', 'ssim', 'bpp'],
+                           'metrics_fn': CompressionTaskMetrics(),
+                           'loss_fn': RateDistortionLoss(params.lmbda),
+                           'weight': [1, 1, 0]}
+    if params.vsr:
+        task_dict["vsr"] = {'metrics': ['psnr', 'ssim'],
+                            'metrics_fn': QualityMetrics(),
+                            'loss_fn': VSRLoss(params.lmbda),
+                            'weight': [1, 1]}
     if params.enable_wandb:
-        run_name = get_run_name(params)
         wandb.init(project="VSRVC", name=run_name)
     my_trainer = Trainer(task_dict=task_dict,
                          weighting=params.weighting,
