@@ -1,4 +1,5 @@
 import os
+from typing import Dict
 
 from torch.utils.data import DataLoader
 
@@ -63,17 +64,21 @@ def main(params):
         drop_last=True,
     )
     # define tasks
-    task_dict = {}
+    task_dict: Dict[str, dict] = {}
     if params.vc:
         task_dict["vc"] = {'metrics': ['psnr', 'ssim', 'bpp'],
                            'metrics_fn': CompressionTaskMetrics(),
                            'loss_fn': RateDistortionLoss(params.lmbda),
                            'weight': [1, 1, 0]}
+    else:
+        task_dict["vc"] = {'metrics': [], 'metrics_fn': None, 'loss_fn': None, 'weight': []}
     if params.vsr:
         task_dict["vsr"] = {'metrics': ['psnr', 'ssim'],
                             'metrics_fn': QualityMetrics(),
                             'loss_fn': VSRLoss(params.lmbda),
                             'weight': [1, 1]}
+    else:
+        task_dict["vsr"] = {'metrics': [], 'metrics_fn': None, 'loss_fn': None, 'weight': []}
     if params.enable_wandb:
         wandb.init(project="VSRVC", name=run_name)
     my_trainer = Trainer(task_dict=task_dict,

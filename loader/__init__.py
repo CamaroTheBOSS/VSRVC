@@ -1,12 +1,5 @@
-from models.vsrvc import VSRVCEncoder
-from models.vsrvc import ISRDecoder
-from models.vsrvc import ICDecoder
-from models.vsrvc import ICDecoder
-from models.vsrvc import VCResidualDecoder
-from models.vsrvc import VSRResidualDecoder
-from models.vsrvc import VSRVCResidualEncoder
-from models.vsrvc import VSRVCMotionResidualEncoder
-from models.vsrvc import VCMotionResidualDecoder
+from models.vsrvc import VSRVCEncoder, ISRDecoder, ICDecoder, VCResidualDecoder, VSRResidualDecoder, \
+    VSRVCResidualEncoder, VSRVCMotionResidualEncoder, VCMotionResidualDecoder, DummyVSRDecoder, DummyVCDecoder
 
 __all__ = ['VSRVCEncoder',
            'ISRDecoder',
@@ -16,4 +9,6 @@ __all__ = ['VSRVCEncoder',
            'VSRVCResidualEncoder',
            'VSRVCMotionResidualEncoder',
            'VCMotionResidualDecoder',
+           'DummyVSRDecoder',
+           'DummyVCDecoder',
            ]

@@ -66,6 +66,8 @@ class VSRVCMotionResidualEncoder(nn.Module):
         offsets = self.motion_estimator(prev_feat, curr_feat)
         decompressed_offsets, p_bits, hp_bits = self.motion_compressor.train_compression_decompression(offsets)
         aligned_features = self.motion_compensator(prev_feat, decompressed_offsets)
+        if self.only_vsr:
+            return [(aligned_features, x[:, -1])]
         return [(aligned_features, curr_feat, p_bits, hp_bits), (aligned_features, x[:, -1])]
 
 
@@ -240,3 +242,30 @@ class ICDecoder(nn.Module):
         decompressed_data, prior_bits, hyperprior_bits = self.compressor.train_compression_decompression(x)
         reconstructed_frame = self.reconstruction_head(decompressed_data)
         return reconstructed_frame, [prior_bits, hyperprior_bits]
+
+
+class DummyVCDecoder(nn.Module):
+    def __init__(self):
+        super(DummyVCDecoder, self).__init__()
+        self.out_shape = (1, 3, 512, 960)
+        self.device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+
+    def compress(self, x: torch.Tensor):
+        align_feat, curr_feat, mv_p_string, mv_hp_string, mv_shape = x
+        return [([b''], [b''], 0), (mv_p_string, mv_hp_string, mv_shape)]
+
+    def decompress(self, x, y, z, w):
+        return self.forward(x)
+
+    def forward(self, x):
+        return torch.zeros(self.out_shape, device=self.device)
+
+
+class DummyVSRDecoder(nn.Module):
+    def __init__(self):
+        super(DummyVSRDecoder, self).__init__()
+        self.out_shape = (1, 3, 1024, 1920)
+        self.device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+
+    def forward(self, x):
+        return torch.zeros(self.out_shape, device=self.device)
