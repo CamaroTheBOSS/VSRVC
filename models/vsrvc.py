@@ -66,8 +66,6 @@ class VSRVCMotionResidualEncoder(nn.Module):
         offsets = self.motion_estimator(prev_feat, curr_feat)
         decompressed_offsets, p_bits, hp_bits = self.motion_compressor.train_compression_decompression(offsets)
         aligned_features = self.motion_compensator(prev_feat, decompressed_offsets)
-        if self.only_vsr:
-            return [(aligned_features, x[:, -1])]
         return [(aligned_features, curr_feat, p_bits, hp_bits), (aligned_features, x[:, -1])]
 
 

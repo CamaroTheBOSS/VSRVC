@@ -31,7 +31,7 @@ def get_run_name(params):
     prefix = ('VSR' if params.vsr else '') + ('VC' if params.vc else '')
     model_type = ' res ' if params.model_type == "vsrvc_res" else ' '
     model_type = ' mv ' if params.model_type == "vsrvc_res_mv" else ' '
-    return f"{prefix}{model_type}{params.lmbda}"
+    return f"{prefix}{model_type}{params.lmbda} {params.weighting}"
 
 
 def main(params):
