@@ -131,22 +131,25 @@ class VSRVCResidualEncoder(nn.Module):
 
 
 class VSRResidualDecoder(nn.Module):
-    def __init__(self, in_channels: int, mid_channels: int):
+    def __init__(self, in_channels: int, mid_channels: int, scale: int = 2):
         super(VSRResidualDecoder, self).__init__()
         self.reconstruction_trunk = ResidualBlocksWithInputConv(2 * in_channels, mid_channels, 3)
-        self.upsampler1 = PixelShufflePack(mid_channels, mid_channels, 2, upsample_kernel=3)
-        self.upsampler2 = PixelShufflePack(mid_channels, mid_channels, 2, upsample_kernel=3)
+        num_layers = int(torch.log2(torch.tensor(scale))) + 1
+        upscale_layers = []
+        for _ in range(num_layers):
+            upscale_layers.append(PixelShufflePack(mid_channels, mid_channels, 2, upsample_kernel=3))
+            upscale_layers.append(nn.LeakyReLU(negative_slope=0.1, inplace=True))
+        self.upsampler = nn.Sequential(*upscale_layers)
         self.conv_hr = nn.Conv2d(mid_channels, mid_channels, 3, 1, 1)
         self.conv_last = nn.Conv2d(mid_channels, 3, 3, 1, 1)
-        self.interpolation = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False)
+        self.interpolation = nn.Upsample(scale_factor=scale, mode='bilinear', align_corners=False)
 
         self.lrelu = nn.LeakyReLU(negative_slope=0.1, inplace=True)
 
     def forward(self, x):
         prev_feat, curr_feat, lqs = x
         reconstruction = self.reconstruction_trunk(torch.cat([prev_feat, curr_feat], dim=1))
-        reconstruction = self.lrelu(self.upsampler1(reconstruction))
-        reconstruction = self.lrelu(self.upsampler2(reconstruction))
+        reconstruction = self.upsampler(reconstruction)
         reconstruction = self.lrelu(self.conv_hr(reconstruction))
         reconstruction = self.conv_last(reconstruction)
         reconstruction += self.interpolation(lqs)
@@ -199,22 +202,25 @@ class VSRVCEncoder(nn.Module):
 
 
 class ISRDecoder(nn.Module):
-    def __init__(self, in_channels: int, mid_channels: int):
+    def __init__(self, in_channels: int, mid_channels: int, scale: int = 2):
         super(ISRDecoder, self).__init__()
         self.reconstruction_trunk = ResidualBlocksWithInputConv(in_channels, mid_channels, 3)
-        self.upsampler1 = PixelShufflePack(mid_channels, mid_channels, 2, upsample_kernel=3)
-        self.upsampler2 = PixelShufflePack(mid_channels, mid_channels, 2, upsample_kernel=3)
+        num_layers = int(torch.log2(torch.tensor(scale))) + 1
+        upscale_layers = []
+        for _ in range(num_layers):
+            upscale_layers.append(PixelShufflePack(mid_channels, mid_channels, 2, upsample_kernel=3))
+            upscale_layers.append(nn.LeakyReLU(negative_slope=0.1, inplace=True))
+        self.upsampler = nn.Sequential(*upscale_layers)
         self.conv_hr = nn.Conv2d(mid_channels, mid_channels, 3, 1, 1)
         self.conv_last = nn.Conv2d(mid_channels, 3, 3, 1, 1)
-        self.interpolation = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False)
+        self.interpolation = nn.Upsample(scale_factor=scale, mode='bilinear', align_corners=False)
 
         self.lrelu = nn.LeakyReLU(negative_slope=0.1, inplace=True)
 
     def forward(self, x):
         features, lqs = x
         reconstruction = self.reconstruction_trunk(features)
-        reconstruction = self.lrelu(self.upsampler1(reconstruction))
-        reconstruction = self.lrelu(self.upsampler2(reconstruction))
+        reconstruction = self.upsampler(reconstruction)
         reconstruction = self.lrelu(self.conv_hr(reconstruction))
         reconstruction = self.conv_last(reconstruction)
         reconstruction += self.interpolation(lqs)

@@ -97,6 +97,7 @@ def main(params):
                          print_interval=100,
                          lmbda=params.lmbda,
                          model_type=model_type,
+                         scale=params.scale,
                          **kwargs)
     if params.mode == 'train':
         my_trainer.train(train_dataloader, test_dataloader, params.epochs)

@@ -25,6 +25,7 @@ def vsrvc(params, kwargs):
         decoder_kwargs["vsr"] = {
             'in_channels': 64,
             'mid_channels': 64,
+            "scale": params.scale,
         }
         decoders["vsr"] = ISRDecoder(**decoder_kwargs['vsr'])
     else:
@@ -59,6 +60,7 @@ def vsrvc_residual(params, kwargs):
         decoder_kwargs["vsr"] = {
             'in_channels': 64,
             'mid_channels': 64,
+            "scale": params.scale,
         }
         decoders["vsr"] = VSRResidualDecoder(**decoder_kwargs['vsr'])
     else:
@@ -93,6 +95,7 @@ def vsrvc_motion_residual(params, kwargs):
         decoder_kwargs["vsr"] = {
             'in_channels': 64,
             'mid_channels': 64,
+            "scale": params.scale,
         }
         decoders["vsr"] = ISRDecoder(**decoder_kwargs['vsr'])
     else:

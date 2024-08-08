@@ -20,7 +20,7 @@ from scheduler import MyCosineAnnealingLR
 
 class Trainer(nn.Module):
     def __init__(self, task_dict, weighting, architecture, encoder_class, decoders, decoder_kwargs, rep_grad,
-                 multi_input, optim_param, scheduler_param, logging, print_interval, lmbda, model_type,
+                 multi_input, optim_param, scheduler_param, logging, print_interval, lmbda, model_type, scale,
                  save_path=None, load_path=None, **kwargs):
         super(Trainer, self).__init__()
 
@@ -37,20 +37,22 @@ class Trainer(nn.Module):
         self.save_path = save_path
         self.load_path = load_path
         self.model_type = model_type
+        self.scale = scale
         self.logger = WandbLogger(print_interval, task_dict) if logging else Logger(print_interval, task_dict)
 
         self._prepare_model(weighting, architecture, encoder_class, decoders)
         self._prepare_optimizer(optim_param, scheduler_param)
 
         self.meter = _PerformanceMeter(self.task_dict, self.multi_input)
+        self.crop_size = (256, 256)
         self.augmentation = Compose([
             ColorJiggle(brightness=(0.85, 1.15), contrast=(0.75, 1.15), saturation=(0.75, 1.25), hue=(-0.02, 0.02),
                         same_on_batch=True, p=1),
-            RandomCrop(size=(256, 384), same_on_batch=True),
+            RandomCrop(size=self.crop_size, same_on_batch=True),
             RandomVerticalFlip(same_on_batch=True, p=0.5),
             RandomHorizontalFlip(same_on_batch=True, p=0.5),
         ])
-        self.resize = Resize((256 // 2, 384 // 2))
+        self.resize = Resize((self.crop_size[0] // self.scale, self.crop_size[1] // self.scale))
 
     def augment_data(self, data):
         if self.model.training:
@@ -58,7 +60,7 @@ class Trainer(nn.Module):
             lqs = torch.stack([self.resize(vid) for vid in hqs])
             label = {"vc": lqs[:, -1].clone(), "vsr": hqs[:, -1]}
             return lqs, label
-        hqs = data[:, :, :, :256, :384]
+        hqs = data[:, :, :, :self.crop_size[0], :self.crop_size[1]]
         lqs = torch.stack([self.resize(vid) for vid in hqs])
         label = {"vc": lqs[:, -1].clone(), "vsr": hqs[:, -1]}
         return lqs, label
