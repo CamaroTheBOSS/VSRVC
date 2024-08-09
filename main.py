@@ -24,6 +24,7 @@ def parse_args(parser):
     parser.add_argument('--model_type', default="vsrvc", type=str, help='trained model type, options: vsrvc, vsrvc_res')
     parser.add_argument('--vsr', action='store_true', default=False, help='whether to train VSR')
     parser.add_argument('--vc', action='store_true', default=False, help='whether to train VC')
+    parser.add_argument('--log_grads', action='store_true', default=False, help='whether to log grads')
     return parser.parse_args()
 
 
@@ -98,6 +99,7 @@ def main(params):
                          lmbda=params.lmbda,
                          model_type=model_type,
                          scale=params.scale,
+                         log_grads=params.log_grads,
                          **kwargs)
     if params.mode == 'train':
         my_trainer.train(train_dataloader, test_dataloader, params.epochs)

@@ -27,9 +27,10 @@ def build_metric_name(mode, task, metric):
 
 
 class WandbLogger(Logger):
-    def __init__(self, interval, task_dict):
+    def __init__(self, interval, task_dict, log_grads):
         super().__init__(interval, task_dict)
         self.metric_dict = {}
+        self.log_grads = log_grads
         self.train_step_metric = "Training step"
         self.test_step_metric = "Epoch"
         self.define_metrics()
@@ -44,6 +45,10 @@ class WandbLogger(Logger):
         wandb.define_metric(name, step_metric=step_metric)
 
     def define_metrics(self):
+        if self.log_grads:
+            self.create_metric(build_metric_name("grad", "vc", "norm"), step_metric=self.train_step_metric)
+            self.create_metric(build_metric_name("grad", "vsr", "norm"), step_metric=self.train_step_metric)
+            self.create_metric(build_metric_name("grad", "cos", "angle"), step_metric=self.train_step_metric)
         self.create_metric(build_metric_name("train", "aux", "loss"), step_metric=self.train_step_metric)
         for task in self.task_dict.keys():
             self.create_metric(build_metric_name("train", task, "loss"), step_metric=self.train_step_metric)
@@ -51,10 +56,10 @@ class WandbLogger(Logger):
                 self.create_metric(build_metric_name("val", task, metric), step_metric=self.test_step_metric)
 
     def log(self, task, metric_name, value, mode="train"):
-        if mode not in ["train", "val"]:
-            raise NotImplementedError("Only train/test mode is allowed")
+        if mode not in ["train", "val", "grad"]:
+            raise NotImplementedError("Only train/test/grad mode is allowed")
         name = build_metric_name(mode, task, metric_name)
-        step_metric = self.train_step_metric if mode == "train" else self.test_step_metric
+        step_metric = self.train_step_metric if mode in ["train", "grad"] else self.test_step_metric
         self.metric_dict[step_metric][0][name] = value
 
     def push(self, mode="train"):

@@ -11,7 +11,7 @@ class VSRVCMotionResidualEncoder(nn.Module):
     def __init__(self,  in_channels: int = 3, mid_channels: int = 64, out_channels: int = 64, num_blocks: int = 3):
         super(VSRVCMotionResidualEncoder, self).__init__()
         self.feat_extractor = nn.Sequential(*[
-            nn.Conv2d(in_channels, mid_channels, 5, 2, 2),
+            nn.Conv2d(in_channels, mid_channels, 5, 1, 2),
             ResidualBlocksWithInputConv(in_channels=mid_channels, out_channels=mid_channels, num_blocks=num_blocks)
         ])
         self.motion_estimator = MotionEstimator(mid_channels, 144)
@@ -105,7 +105,7 @@ class VSRVCResidualEncoder(nn.Module):
     def __init__(self,  in_channels: int = 3, mid_channels: int = 64, out_channels: int = 64, num_blocks: int = 3):
         super(VSRVCResidualEncoder, self).__init__()
         self.layers = nn.Sequential(*[
-            nn.Conv2d(in_channels, mid_channels, 5, 2, 2),
+            nn.Conv2d(in_channels, mid_channels, 5, 1, 2),
             ResidualBlocksWithInputConv(in_channels=mid_channels, out_channels=out_channels, num_blocks=num_blocks)
         ])
 
@@ -134,7 +134,7 @@ class VSRResidualDecoder(nn.Module):
     def __init__(self, in_channels: int, mid_channels: int, scale: int = 2):
         super(VSRResidualDecoder, self).__init__()
         self.reconstruction_trunk = ResidualBlocksWithInputConv(2 * in_channels, mid_channels, 3)
-        num_layers = int(torch.log2(torch.tensor(scale))) + 1
+        num_layers = int(torch.log2(torch.tensor(scale)))
         upscale_layers = []
         for _ in range(num_layers):
             upscale_layers.append(PixelShufflePack(mid_channels, mid_channels, 2, upsample_kernel=3))
@@ -205,7 +205,7 @@ class ISRDecoder(nn.Module):
     def __init__(self, in_channels: int, mid_channels: int, scale: int = 2):
         super(ISRDecoder, self).__init__()
         self.reconstruction_trunk = ResidualBlocksWithInputConv(in_channels, mid_channels, 3)
-        num_layers = int(torch.log2(torch.tensor(scale))) + 1
+        num_layers = int(torch.log2(torch.tensor(scale)))
         upscale_layers = []
         for _ in range(num_layers):
             upscale_layers.append(PixelShufflePack(mid_channels, mid_channels, 2, upsample_kernel=3))

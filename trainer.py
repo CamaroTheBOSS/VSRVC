@@ -21,13 +21,14 @@ from scheduler import MyCosineAnnealingLR
 class Trainer(nn.Module):
     def __init__(self, task_dict, weighting, architecture, encoder_class, decoders, decoder_kwargs, rep_grad,
                  multi_input, optim_param, scheduler_param, logging, print_interval, lmbda, model_type, scale,
-                 save_path=None, load_path=None, **kwargs):
+                 log_grads, save_path=None, load_path=None, **kwargs):
         super(Trainer, self).__init__()
 
         self.device = torch.device('cuda:0')
         self.kwargs = kwargs
         self.decoder_kwargs = decoder_kwargs
         self.lmbda = lmbda
+        self.log_grads = log_grads
         self.task_dict = task_dict
         self.task_num = len(task_dict)
         self.task_name = list(task_dict.keys())
@@ -38,7 +39,7 @@ class Trainer(nn.Module):
         self.load_path = load_path
         self.model_type = model_type
         self.scale = scale
-        self.logger = WandbLogger(print_interval, task_dict) if logging else Logger(print_interval, task_dict)
+        self.logger = WandbLogger(print_interval, task_dict, log_grads) if logging else Logger(print_interval, task_dict)
 
         self._prepare_model(weighting, architecture, encoder_class, decoders)
         self._prepare_optimizer(optim_param, scheduler_param)
@@ -75,6 +76,14 @@ class Trainer(nn.Module):
                 super(MTLmodel, self).__init__(task_name, encoder_class, decoders, rep_grad, multi_input, device,
                                                **kwargs)
                 self.init_param()
+
+            def shared_params(self):
+                for name, param in self.encoder.named_parameters():
+                    if not name.endswith(".quantiles"):
+                        yield param
+
+            def get_share_params(self):
+                return self.shared_params()
 
         self.model = MTLmodel(task_name=self.task_name,
                               encoder_class=encoder_class,
@@ -240,9 +249,15 @@ class Trainer(nn.Module):
 
                 aux_loss = self._compute_aux_loss()
                 self.logger.print(f"{batch_index + 1}/{train_batch}")
-                self.logger.push()
-
                 self.optimizer.zero_grad(set_to_none=False)
+                if self.log_grads:
+                    grads = self.get_gradients(train_losses, mode="autograd")
+                    norm_vc = torch.norm(grads[0])
+                    norm_vsr = torch.norm(grads[1])
+                    cos_angle = torch.dot(grads[0], grads[1]) / (norm_vc * norm_vsr)
+                    self.logger.log("vc", "norm", norm_vc, mode="grad")
+                    self.logger.log("vsr", "norm", norm_vsr, mode="grad")
+                    self.logger.log("cos", "angle", cos_angle, mode="grad")
                 w = self.model.backward(train_losses, **self.kwargs['weight_args'])
                 if w is not None:
                     self.batch_weight[:, epoch, batch_index] = w
@@ -250,6 +265,7 @@ class Trainer(nn.Module):
                 self.aux_optimizer.zero_grad(set_to_none=False)
                 aux_loss.backward()
                 self.aux_optimizer.step()
+                self.logger.push()
 
             self.meter.record_time('end')
             self.meter.get_score()
@@ -307,3 +323,28 @@ class Trainer(nn.Module):
         self.meter.reinit()
         if return_improvement:
             return improvement
+
+    def get_gradients(self, losses, mode):
+        self.model._compute_grad_dim()
+        if not self.rep_grad:
+            grads = torch.zeros(self.task_num, self.model.grad_dim).to(self.device)
+            for tn in range(self.task_num):
+                if mode == 'backward':
+                    losses[tn].backward(retain_graph=True) if (tn + 1) != self.task_num else losses[tn].backward()
+                    grads[tn] = self._grad2vec()
+                elif mode == 'autograd':
+                    grad = list(torch.autograd.grad(losses[tn], self.model.get_share_params(), retain_graph=True))
+                    grads[tn] = torch.cat([g.reshape(-1) for g in grad])
+                else:
+                    raise ValueError('No support {} mode for gradient computation')
+                self.model.zero_grad_share_params()
+        else:
+            if not isinstance(self.rep, dict):
+                grads = torch.zeros(self.task_num, *self.model.rep.size()).to(self.device)
+            else:
+                grads = [torch.zeros(*self.model.rep[task].size()) for task in self.task_name]
+            for tn, task in enumerate(self.task_name):
+                if mode == 'backward':
+                    losses[tn].backward(retain_graph=True) if (tn + 1) != self.task_num else losses[tn].backward()
+                    grads[tn] = self.model.rep_tasks[task].grad.data.clone()
+        return grads
