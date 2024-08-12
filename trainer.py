@@ -5,14 +5,13 @@ import torch, os
 import torch.nn as nn
 import numpy as np
 from compressai.entropy_models import EntropyBottleneck
-from kornia.augmentation import ColorJiggle, RandomCrop, RandomVerticalFlip, RandomHorizontalFlip, Resize
 from torch import Tensor
-from torchvision.transforms import Compose
 
 from LibMTL._record import _PerformanceMeter
 from LibMTL.utils import count_parameters
 import LibMTL.weighting as weighting_method
 import LibMTL.architecture as architecture_method
+from datasets import VimeoAugmentation
 
 from logger import Logger, WandbLogger
 from scheduler import MyCosineAnnealingLR
@@ -46,25 +45,10 @@ class Trainer(nn.Module):
 
         self.meter = _PerformanceMeter(self.task_dict, self.multi_input)
         self.crop_size = (256, 256)
-        self.augmentation = Compose([
-            ColorJiggle(brightness=(0.85, 1.15), contrast=(0.75, 1.15), saturation=(0.75, 1.25), hue=(-0.02, 0.02),
-                        same_on_batch=True, p=1),
-            RandomCrop(size=self.crop_size, same_on_batch=True),
-            RandomVerticalFlip(same_on_batch=True, p=0.5),
-            RandomHorizontalFlip(same_on_batch=True, p=0.5),
-        ])
-        self.resize = Resize((self.crop_size[0] // self.scale, self.crop_size[1] // self.scale))
+        self.augmentation = VimeoAugmentation(multi_input, scale)
 
-    def augment_data(self, data):
-        if self.model.training:
-            hqs = torch.stack([self.augmentation(vid) for vid in data])
-            lqs = torch.stack([self.resize(vid) for vid in hqs])
-            label = {"vc": lqs[:, -1].clone(), "vsr": hqs[:, -1]}
-            return lqs, label
-        hqs = data[:, :, :, :self.crop_size[0], :self.crop_size[1]]
-        lqs = torch.stack([self.resize(vid) for vid in hqs])
-        label = {"vc": lqs[:, -1].clone(), "vsr": hqs[:, -1]}
-        return lqs, label
+    def augment_data(self, data, task=None):
+        return self.augmentation(data, task, training_mode=self.training)
 
     def _prepare_model(self, weighting, architecture, encoder_class, decoders):
 
@@ -196,6 +180,7 @@ class Trainer(nn.Module):
                 self.logger.log(task, "loss", train_losses[tn])
         else:
             train_losses = self.meter.losses[task_name]._update_loss(preds, gts)
+            self.logger.log(task_name, "loss", train_losses)
         return train_losses
 
     def _compute_aux_loss(self):
@@ -241,14 +226,22 @@ class Trainer(nn.Module):
             self.model.train()
             self.meter.record_time('begin')
             for batch_index in range(train_batch):
-                train_inputs, train_gts = self._process_data(train_loader)
-                train_inputs, train_gts = self.augment_data(train_inputs)
-                train_preds = self.model(train_inputs)
-                train_losses = self._compute_loss(train_preds, train_gts)
-                self.meter.update(train_preds, train_gts)
+                if not self.multi_input:
+                    train_inputs, train_gts = self._process_data(train_loader)
+                    train_inputs, train_gts = self.augment_data(train_inputs)
+                    train_preds = self.model(train_inputs)
+                    train_losses = self._compute_loss(train_preds, train_gts)
+                    self.meter.update(train_preds, train_gts)
+                else:
+                    train_losses = torch.zeros(self.task_num).to(self.device)
+                    for tn, task in enumerate(self.task_name):
+                        train_input, train_gt = self._process_data(train_loader[task])
+                        train_input, train_gt = self.augment_data(train_input, task)
+                        train_pred = self.model(train_input, task)
+                        train_pred = train_pred[task]
+                        train_losses[tn] = self._compute_loss(train_pred, train_gt, task)
+                        self.meter.update(train_pred, train_gt, task)
 
-                aux_loss = self._compute_aux_loss()
-                self.logger.print(f"{batch_index + 1}/{train_batch}")
                 self.optimizer.zero_grad(set_to_none=False)
                 if self.log_grads:
                     grads = self.get_gradients(train_losses, mode="autograd")
@@ -262,9 +255,11 @@ class Trainer(nn.Module):
                 if w is not None:
                     self.batch_weight[:, epoch, batch_index] = w
                 self.optimizer.step()
+                aux_loss = self._compute_aux_loss()
                 self.aux_optimizer.zero_grad(set_to_none=False)
                 aux_loss.backward()
                 self.aux_optimizer.step()
+                self.logger.print(f"{batch_index + 1}/{train_batch}")
                 self.logger.push()
 
             self.meter.record_time('end')
@@ -305,12 +300,21 @@ class Trainer(nn.Module):
         self.model.eval()
         self.meter.record_time('begin')
         with torch.no_grad():
-            for batch_index in range(test_batch):
-                test_inputs, test_gts = self._process_data(test_loader)
-                test_inputs, test_gts = self.augment_data(test_inputs)
-                test_preds = self.model(test_inputs)
-                self.meter.update(test_preds, test_gts)
-                self.logger.print(f"{batch_index + 1}/{test_batch}")
+            if not self.multi_input:
+                for batch_index in range(test_batch):
+                    test_inputs, test_gts = self._process_data(test_loader)
+                    test_inputs, test_gts = self.augment_data(test_inputs)
+                    test_preds = self.model(test_inputs)
+                    self.meter.update(test_preds, test_gts)
+                    self.logger.print(f"{batch_index + 1}/{test_batch}")
+            else:
+                for tn, task in enumerate(self.task_name):
+                    for batch_index in range(test_batch[tn]):
+                        test_input, test_gt = self._process_data(test_loader[task])
+                        test_input, test_gt = self.augment_data(test_input, task)
+                        test_pred = self.model(test_input, task)
+                        test_pred = test_pred[task]
+                        self.meter.update(test_pred, test_gt, task)
 
         self.meter.record_time('end')
         results = self.meter.get_score()

@@ -32,7 +32,7 @@ def get_run_name(params):
     prefix = ('VSR' if params.vsr else '') + ('VC' if params.vc else '')
     model_type = ' res ' if params.model_type == "vsrvc_res" else ' '
     model_type = ' mv ' if params.model_type == "vsrvc_res_mv" else ' '
-    return f"{prefix}{model_type}{params.lmbda} {params.weighting}"
+    return f"{prefix}{model_type}{params.lmbda} {params.weighting} x{params.scale}"
 
 
 def main(params):
@@ -48,22 +48,40 @@ def main(params):
     train_set, test_set, encoder_class, decoders, kwargs, decoder_kwargs, model_type = f(params, kwargs)
     run_name = get_run_name(params)
     params.save_path = os.path.join(params.save_path, run_name)
-    train_dataloader = DataLoader(
-        train_set,
-        batch_size=params.batch_size,
-        shuffle=True,
-        num_workers=params.num_workers,
-        pin_memory=True,
-        drop_last=True,
-    )
-    test_dataloader = DataLoader(
-        test_set,
-        batch_size=params.batch_size,
-        shuffle=False,
-        num_workers=params.num_workers,
-        pin_memory=True,
-        drop_last=True,
-    )
+    if params.multi_input:
+        train_dataloader = {
+            key: DataLoader(
+                    training_set,
+                    batch_size=params.batch_size,
+                    shuffle=True,
+                    num_workers=params.num_workers,
+                    pin_memory=True,
+                    drop_last=True,) for key, training_set in train_set.items()}
+        test_dataloader = {
+            key: DataLoader(
+                testing_set,
+                batch_size=params.batch_size,
+                shuffle=False,
+                num_workers=params.num_workers,
+                pin_memory=True,
+                drop_last=True, ) for key, testing_set in test_set.items()}
+    else:
+        train_dataloader = DataLoader(
+            train_set,
+            batch_size=params.batch_size,
+            shuffle=True,
+            num_workers=params.num_workers,
+            pin_memory=True,
+            drop_last=True,
+        )
+        test_dataloader = DataLoader(
+            test_set,
+            batch_size=params.batch_size,
+            shuffle=False,
+            num_workers=params.num_workers,
+            pin_memory=True,
+            drop_last=True,
+        )
     # define tasks
     task_dict: Dict[str, dict] = {}
     if params.vc:

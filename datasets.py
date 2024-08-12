@@ -5,25 +5,22 @@ from typing import Tuple
 import torch
 from PIL import Image
 
-from kornia.augmentation import Resize
+from kornia.augmentation import Resize, ColorJiggle, RandomCrop, RandomVerticalFlip, RandomHorizontalFlip
 from torch.utils.data import Dataset
 from torchvision.transforms import Compose, ToTensor
 
 
 class Vimeo90k(Dataset):
-    def __init__(self, root: str, scale: int, test_mode: bool = False, crop_size: Tuple[int, int] = (256, 256),
-                 sliding_window_size: int = 0):
+    def __init__(self, root: str, test_mode: bool = False, sliding_window_size: int = 0, multi_input=False):
         super().__init__()
         self.root = root
         self.sequences = os.path.join(root, "train")
         self.txt_file = os.path.join(root, "sep_testlist.txt" if test_mode else "sep_trainlist.txt")
 
-        self.scale = scale
-        self.crop_size = crop_size
-        self.test_mode = test_mode
         self.sliding_window_size = sliding_window_size if 0 < sliding_window_size < 7 else 7
         self.videos = self.load_paths()
         self.transform = Compose([ToTensor()])
+        self.multi_input = multi_input
 
         assert os.path.exists(self.root)
         assert os.path.exists(self.txt_file)
@@ -45,10 +42,77 @@ class Vimeo90k(Dataset):
 
     def __getitem__(self, index: int):
         video = self.read_video(index)
+        if self.multi_input:
+            return video, torch.tensor(0)
         return video, {"vc": torch.tensor(0), "vsr": torch.tensor(0)}
 
     def __len__(self) -> int:
         return len(self.videos)
+
+
+class VimeoAugmentation:
+    def __init__(self, multi_input, scale):
+        self.multi_input = multi_input
+        self.scale = scale
+        if not multi_input:
+            self.crop_size = (256, 256)
+            self.augmentation = Compose([
+                ColorJiggle(brightness=(0.85, 1.15), contrast=(0.75, 1.15), saturation=(0.75, 1.25), hue=(-0.02, 0.02),
+                            same_on_batch=True, p=1),
+                RandomCrop(size=self.crop_size, same_on_batch=True),
+                RandomVerticalFlip(same_on_batch=True, p=0.5),
+                RandomHorizontalFlip(same_on_batch=True, p=0.5),
+            ])
+            self.resize = Resize((self.crop_size[0] // scale, self.crop_size[1] // scale))
+        else:
+            self.crop_size = {"vc": (256, 384), "vsr": (256, 256)}
+            self.augmentation = {
+                "vc": Compose([
+                    ColorJiggle(brightness=(0.85, 1.15), contrast=(0.75, 1.15), saturation=(0.75, 1.25),
+                                hue=(-0.02, 0.02),
+                                same_on_batch=True, p=1),
+                    RandomCrop(size=self.crop_size["vc"], same_on_batch=True),
+                    RandomVerticalFlip(same_on_batch=True, p=0.5),
+                    RandomHorizontalFlip(same_on_batch=True, p=0.5),
+                ]),
+                "vsr": Compose([
+                    ColorJiggle(brightness=(0.85, 1.15), contrast=(0.75, 1.15), saturation=(0.75, 1.25),
+                                hue=(-0.02, 0.02),
+                                same_on_batch=True, p=1),
+                    RandomCrop(size=self.crop_size["vsr"], same_on_batch=True),
+                    RandomVerticalFlip(same_on_batch=True, p=0.5),
+                    RandomHorizontalFlip(same_on_batch=True, p=0.5),
+                ])}
+            self.resize = {
+                "vc": None,
+                "vsr": Resize((self.crop_size["vsr"][0] // scale, self.crop_size["vsr"][1] // scale)),
+            }
+
+    def __call__(self, data, task=None, training_mode=True):
+        if not self.multi_input:
+            if training_mode:
+                hqs = torch.stack([self.augmentation(vid) for vid in data])
+                lqs = torch.stack([self.resize(vid) for vid in hqs])
+                label = {"vc": lqs[:, -1].clone(), "vsr": hqs[:, -1]}
+                return lqs, label
+            hqs = data[:, :, :, :self.crop_size[0], :self.crop_size[1]]
+            lqs = torch.stack([self.resize(vid) for vid in hqs])
+            label = {"vc": lqs[:, -1].clone(), "vsr": hqs[:, -1]}
+            return lqs, label
+        else:
+            if training_mode:
+                gt = torch.stack([self.augmentation[task](vid) for vid in data])
+                if self.resize[task] is not None:
+                    inp = torch.stack([self.resize[task](vid) for vid in gt])
+                else:
+                    inp = gt.clone()
+                return inp, gt[:, -1]
+            gt = data[:, :, :, :self.crop_size[task][0], :self.crop_size[task][1]]
+            if self.resize[task] is not None:
+                inp = torch.stack([self.resize[task](vid) for vid in gt])
+            else:
+                inp = gt.clone()
+            return inp, gt[:, -1]
 
 
 class UVGDataset(Dataset):
@@ -94,7 +158,7 @@ class UVGDataset(Dataset):
         return self.__getitem__(index)
 
     def get_name_with_index(self, index: int):
-        return  self.videos[index][0].split("\\")[-2]
+        return self.videos[index][0].split("\\")[-2]
 
     def get_index_with_name(self, name: str):
         for i, vid in enumerate(self.videos):
