@@ -8,8 +8,8 @@ from models.vsrvc import ICDecoder, ISRDecoder, VSRVCEncoder, VCResidualDecoder,
 
 
 def vsrvc(params, kwargs):
-    train_set = Vimeo90k("../Datasets/VIMEO90k", sliding_window_size=params.sliding_window)
-    test_set = Vimeo90k("../Datasets/VIMEO90k", test_mode=True, sliding_window_size=params.sliding_window)
+    train_set = Vimeo90k(params.vimeo_path, sliding_window_size=params.sliding_window)
+    test_set = Vimeo90k(params.vimeo_path, test_mode=True, sliding_window_size=params.sliding_window)
     decoder_kwargs: Dict[str, dict] = {}
     decoders: nn.ModuleDict[str, nn.Module] = nn.ModuleDict({})
     if params.vc:
@@ -43,8 +43,8 @@ def vsrvc(params, kwargs):
 
 
 def vsrvc_residual(params, kwargs):
-    train_set = Vimeo90k("../Datasets/VIMEO90k", sliding_window_size=2)
-    test_set = Vimeo90k("../Datasets/VIMEO90k", test_mode=True, sliding_window_size=2)
+    train_set = Vimeo90k(params.vimeo_path, sliding_window_size=2)
+    test_set = Vimeo90k(params.vimeo_path, test_mode=True, sliding_window_size=2)
     decoder_kwargs: Dict[str, dict] = {}
     decoders: nn.ModuleDict[str, nn.Module] = nn.ModuleDict({})
     if params.vc:
@@ -80,16 +80,16 @@ def vsrvc_residual(params, kwargs):
 def vsrvc_motion_residual(params, kwargs):
     if params.multi_input:
         train_set = {
-            "vc": Vimeo90k("../Datasets/VIMEO90k", sliding_window_size=2, multi_input=params.multi_input),
-            "vsr": Vimeo90k("../Datasets/VIMEO90k", sliding_window_size=2, multi_input=params.multi_input)
+            "vc": Vimeo90k(params.vimeo_path, sliding_window_size=2, multi_input=params.multi_input),
+            "vsr": Vimeo90k(params.vimeo_path, sliding_window_size=2, multi_input=params.multi_input)
         }
         test_set = {
-            "vc": Vimeo90k("../Datasets/VIMEO90k", test_mode=True, sliding_window_size=2, multi_input=params.multi_input),
-            "vsr": Vimeo90k("../Datasets/VIMEO90k", test_mode=True, sliding_window_size=2, multi_input=params.multi_input)
+            "vc": Vimeo90k(params.vimeo_path, test_mode=True, sliding_window_size=2, multi_input=params.multi_input),
+            "vsr": Vimeo90k(params.vimeo_path, test_mode=True, sliding_window_size=2, multi_input=params.multi_input)
         }
     else:
-        train_set = Vimeo90k("../Datasets/VIMEO90k", sliding_window_size=2)
-        test_set = Vimeo90k("../Datasets/VIMEO90k", test_mode=True, sliding_window_size=2)
+        train_set = Vimeo90k(params.vimeo_path, sliding_window_size=2)
+        test_set = Vimeo90k(params.vimeo_path, test_mode=True, sliding_window_size=2)
     decoder_kwargs: Dict[str, dict] = {}
     decoders: nn.ModuleDict[str, nn.Module] = nn.ModuleDict({})
     if params.vc:
