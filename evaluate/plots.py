@@ -110,8 +110,8 @@ def get_vsr(data):
     return quality
 
 
-def get_multiple_vsr(eval_files):
-    bilinear = load_alg_database("database.json", "bilinear")
+def get_multiple_vsr(eval_files, db_file):
+    bilinear = load_alg_database(db_file, "bilinear")
     vsr_datas = [get_vsr(bilinear)]
     for eval_file in eval_files:
         eval_data = load_eval_file(eval_file)
@@ -120,23 +120,21 @@ def get_multiple_vsr(eval_files):
 
 
 if __name__ == "__main__":
-    database = "./database_UVG_veryslow.json"
+    database = "./db_veryslow_uvg.json"
     eval_files = [
         "../weights/VSRVC mv 128 EW x4/eval 128 12 adapt.json",
         "../weights/VSRVC mv 128 EW x4/eval jpg 12 adapt.json",
         "../weights/VSRVC mv 128 EW x4/eval jpg 36 adapt.json",
     ]
     legend = [
-        "AVC",
-        "HEVC",
         "VSRVC MV λp=128, λi=128, 12",
         "VSRVC MV λp=128, JPG, 12",
         "VSRVC MV λp=128, JPG, 36",
         ]
     plot_vc_multiple(eval_files, database)
-    plt.legend(legend)
+    plt.legend(["AVC", "HEVC"] + legend)
     plt.show()
-    for i, data in enumerate(get_multiple_vsr(eval_files)):
+    for i, data in enumerate(get_multiple_vsr(eval_files, database)):
         if i == 0:
             print(f"{'bilinear:':<39}{data}")
         else:
