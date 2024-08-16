@@ -121,49 +121,21 @@ def get_multiple_vsr(eval_files):
 
 if __name__ == "__main__":
     database = "./database_UVG_veryslow.json"
-    # eval_files = [
-    #     "../weights/isric 128/eval.json",
-    #     "../weights/isric 1024/eval.json",
-    #     "../weights/vsrvc_res l=128/eval128_12_adapt.json",
-    #     "../weights/vsrvc_res_mv l=128/eval128_12_adapt.json",
-    #     "../weights/vsrvc_res_mv l=128/eval1024_12_adapt.json",
-    #     "../weights/vsrvc_res_mv l=128/eval jpg 12 adapt.json"
-    # ]
-    # legend = [
-    #     "ISRIC λi=128",
-    #     "ISRIC λi=1024",
-    #     "VSRVC RES       λp=128, λi=128,  12",
-    #     "VSRVC RES MV λp=128, λi=128,  12",
-    #     "VSRVC RES MV λp=128, λi=1024,12",
-    #     "VSRVC RES MV λp=128, JPG,        12"
-    # ]
-
-    # eval_files = [
-    #     "../weights/vsrvc_res_mv l=128/eval128_12_adapt.json",
-    #     "../weights/vsrvc_res_mv l=128/eval jpg 12 adapt.json",
-    #     "../weights/VC mv 256/eval 128 12 adapt.json",
-    #     "../weights/VC mv 256/eval jpg 12 adapt.json",
-    # ]
-    # legend = [
-    #     "VSRVC RES MV λp=128, λi=128,  12",
-    #     "VSRVC RES MV λp=128, JPG,        12",
-    #     "VC RES MV λp=256, λi=128,  12",
-    #     "VC RES MV λp=256, JPG,        12",
-    # ]
-    # plot_vc_multiple(eval_files, database, legend=legend)
-    # plt.xlim([0, 1.1])
-    # plt.xlabel("BPP")
-    # plt.ylabel("PSNR")
-    # plt.show()
-
     eval_files = [
-        "../weights/vsrvc_res_mv l=128/eval128_12_adapt.json",
-        "../weights/VSR mv 256/eval 128 12 adapt.json",
+        "../weights/VSRVC mv 128 EW x4/eval 128 12 adapt.json",
+        "../weights/VSRVC mv 128 EW x4/eval jpg 12 adapt.json",
+        "../weights/VSRVC mv 128 EW x4/eval jpg 36 adapt.json",
     ]
     legend = [
-        "VSRVC RES MV λp=128, λi=128,  12",
-        "VSR RES MV λp=256"
+        "AVC",
+        "HEVC",
+        "VSRVC MV λp=128, λi=128, 12",
+        "VSRVC MV λp=128, JPG, 12",
+        "VSRVC MV λp=128, JPG, 36",
         ]
+    plot_vc_multiple(eval_files, database)
+    plt.legend(legend)
+    plt.show()
     for i, data in enumerate(get_multiple_vsr(eval_files)):
         if i == 0:
             print(f"{'bilinear:':<39}{data}")

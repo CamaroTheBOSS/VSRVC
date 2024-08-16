@@ -51,7 +51,7 @@ def _eval_example(model, dataset, index, meter=None, results=None, save_root=Non
 
 @torch.no_grad()
 def eval_one(model_root: str, index, cfg=None, save_root=None):
-    dataset = UVGDataset("../../Datasets/UVG", 2)
+    dataset = UVGDataset("../../Datasets/UVG", 4)
     model = load_model(model_root, cfg)
     results = _eval_example(model, dataset, index, save_root=save_root)
     return results
@@ -61,7 +61,7 @@ def eval_one(model_root: str, index, cfg=None, save_root=None):
 def eval_all(model_root: str, cfg=None):
     if cfg is None:
         cfg = {}
-    uvg_set = UVGDataset("../../Datasets/UVG", 2)
+    uvg_set = UVGDataset("../../Datasets/UVG", 4)
     model = load_model(model_root, cfg)
     meter = UVGMetrics()
     results = {"vc_psnr": [], "vc_ssim": [], "vsr_psnr": [], "vsr_ssim": [], "bpp": []}
@@ -75,11 +75,11 @@ def eval_all(model_root: str, cfg=None):
 if __name__ == "__main__":
     set_random_seed(777)
     eval_cfg = {
-        # "keyframe_compress_type": "jpg",
-        # "keyframe_save_root": "../weights/kfs",
-        "iframe_model_path": "D:\\Code\\VSRVC_LibMTL\\weights\\isric 128",
+        "keyframe_compress_type": "jpg",
+        "keyframe_save_root": "../weights/kfs",
+        "iframe_model_path": "D:\\Code\\VSRVC_LibMTL\\weights\\ISRIC 128",
         "keyframe_interval": 12,
         "adaptation": True
     }
-    eval_all("../weights/VSR mv 256", eval_cfg)
+    eval_all("../weights/VSRVC mv 128 EW x4 multi_input", eval_cfg)
     # eval_one("../weights/VC mv 256", 0, eval_cfg, "../weights/vsrvc_res_mv l=128")

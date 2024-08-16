@@ -116,7 +116,7 @@ class VimeoAugmentation:
 
 
 class UVGDataset(Dataset):
-    def __init__(self, root: str, scale: int, max_frames: int = 100, crop_size: Tuple[int, int] = (1024, 1980)):
+    def __init__(self, root: str, scale: int, max_frames: int = 100, crop_size: Tuple[int, int] = (1024, 1792)):
         super().__init__()
         self.root = root
 
