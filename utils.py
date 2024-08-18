@@ -9,6 +9,19 @@ import torch
 from torch.nn.functional import interpolate
 
 
+def confirm_action(prompt="Do you want to continue? (y/n): "):
+    while True:
+        user_input = input(prompt).strip().lower()
+        if user_input == 'y':
+            print("Continuing...")
+            return True
+        elif user_input == 'n':
+            print("Action canceled.")
+            return False
+        else:
+            print("Invalid input. Please enter 'y' or 'n'.")
+
+
 def to_cv2(img):
     return cv2.cvtColor(np.clip(img.detach().permute(1, 2, 0).cpu().numpy() * 255., 0, 255)
                         .astype(np.uint8), cv2.COLOR_RGB2BGR)

@@ -125,11 +125,15 @@ if __name__ == "__main__":
         "../weights/VSRVC mv 128 EW x4/eval 128 12 adapt.json",
         "../weights/VSRVC mv 128 EW x4/eval jpg 12 adapt.json",
         "../weights/VSRVC mv 128 EW x4/eval jpg 36 adapt.json",
+        "../weights/VSRVC mv 128 EW x4 reds/eval jpg 12 adapt.json",
+        "../weights/VSRVC mv 128 EW x4 reds/eval 128 12 adapt.json",
     ]
     legend = [
         "VSRVC MV λp=128, λi=128, 12",
         "VSRVC MV λp=128, JPG, 12",
         "VSRVC MV λp=128, JPG, 36",
+        "VSRVC REDS MV λp=128, JPG, 12",
+        "VSRVC REDS MV λp=128, λi=128, 12",
         ]
     plot_vc_multiple(eval_files, database)
     plt.legend(["AVC", "HEVC"] + legend)

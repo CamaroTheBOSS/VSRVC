@@ -6,7 +6,6 @@ import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.collections as mcoll
-import matplotlib.path as mpath
 
 from LibMTL.utils import set_random_seed
 from datasets import UVGDataset

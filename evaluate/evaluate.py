@@ -75,11 +75,11 @@ def eval_all(model_root: str, cfg=None):
 if __name__ == "__main__":
     set_random_seed(777)
     eval_cfg = {
-        "keyframe_compress_type": "jpg",
-        "keyframe_save_root": "../weights/kfs",
+        # "keyframe_compress_type": "jpg",
+        # "keyframe_save_root": "../weights/kfs",
         "iframe_model_path": "D:\\Code\\VSRVC_LibMTL\\weights\\ISRIC 128",
         "keyframe_interval": 12,
         "adaptation": True
     }
-    eval_all("../weights/VSRVC mv 128 EW x4 multi_input", eval_cfg)
+    eval_all("../weights/VSRVC mv 128 EW x4 reds", eval_cfg)
     # eval_one("../weights/VC mv 256", 0, eval_cfg, "../weights/vsrvc_res_mv l=128")

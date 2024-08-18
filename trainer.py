@@ -1,4 +1,5 @@
 import json
+import shutil
 from typing import cast
 
 import torch, os
@@ -9,12 +10,13 @@ from torch import Tensor
 
 from LibMTL._record import _PerformanceMeter
 from LibMTL.utils import count_parameters
-import LibMTL.weighting as weighting_method
+import weighting as weighting_method
 import LibMTL.architecture as architecture_method
 from datasets import Augmentation
 
 from logger import Logger, WandbLogger
 from scheduler import MyCosineAnnealingLR
+from utils import confirm_action
 
 
 class Trainer(nn.Module):
@@ -85,7 +87,11 @@ class Trainer(nn.Module):
 
         if self.save_path is not None:
             if os.path.exists(self.save_path):
-                raise FileExistsError("Path already exists! Make sure path for saving the model is unique.")
+                if confirm_action("Path already exists, continuing will remove directory and create new one. "
+                                  "Press [y/n] to continue/break\n"):
+                    shutil.rmtree(self.save_path)
+                else:
+                    raise InterruptedError("Keyboard interruption")
             os.makedirs(self.save_path)
             model_data = {
                 "task_name": self.task_name,
@@ -243,17 +249,16 @@ class Trainer(nn.Module):
                         self.meter.update(train_pred, train_gt, task)
 
                 self.optimizer.zero_grad(set_to_none=False)
+                w, grads = self.model.backward(train_losses, **self.kwargs['weight_args'])
+                if w is not None:
+                    self.batch_weight[:, epoch, batch_index] = w
                 if self.log_grads:
-                    grads = self.get_gradients(train_losses, mode="autograd")
                     norm_vc = torch.norm(grads[0])
                     norm_vsr = torch.norm(grads[1])
                     cos_angle = torch.dot(grads[0], grads[1]) / (norm_vc * norm_vsr)
                     self.logger.log("vc", "norm", norm_vc, mode="grad")
                     self.logger.log("vsr", "norm", norm_vsr, mode="grad")
                     self.logger.log("cos", "angle", cos_angle, mode="grad")
-                w = self.model.backward(train_losses, **self.kwargs['weight_args'])
-                if w is not None:
-                    self.batch_weight[:, epoch, batch_index] = w
                 self.optimizer.step()
                 aux_loss = self._compute_aux_loss()
                 self.aux_optimizer.zero_grad(set_to_none=False)

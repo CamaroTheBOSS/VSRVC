@@ -84,6 +84,7 @@ def prepare_args(params):
     if params.weighting in ['EW', 'UW', 'GradNorm', 'GLS', 'RLW', 'MGDA', 'IMTL',
                             'PCGrad', 'GradVac', 'CAGrad', 'GradDrop', 'DWA',
                             'Nash_MTL', 'MoCo', 'Aligned_MTL', 'DB_MTL']:
+        kwargs['weight_args']['log_grads'] = params.log_grads
         if params.weighting in ['DWA']:
             if params.T is not None:
                 kwargs['weight_args']['T'] = params.T
