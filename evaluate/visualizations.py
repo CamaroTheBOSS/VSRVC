@@ -17,6 +17,7 @@ from utils import to_cv2
 
 wandb.require("core")
 
+
 def validate_box(box, H, W):
     y1 = max(box[1], 0)
     y2 = min(y1 + box[3], H)
@@ -68,7 +69,7 @@ def moving_average(a, n=3):
 
 
 def colorline(
-    x, y, z=None, cmap=plt.get_cmap('copper'), norm=plt.Normalize(0.0, 1.0),
+        x, y, z=None, cmap=plt.get_cmap('copper'), norm=plt.Normalize(0.0, 1.0),
         linewidth=3, alpha=1.0):
     """
     http://nbviewer.ipython.org/github/dpsanders/matplotlib-examples/blob/master/colorline.ipynb
@@ -116,7 +117,7 @@ def loss_plot(run_string):
     metrics_dataframe = run.scan_history(keys=["train_vc_loss", "train_vsr_loss"])
     vc_loss = moving_average(np.array([row["train_vc_loss"] for row in metrics_dataframe]), 10)
     vsr_loss = moving_average(np.array([row["train_vsr_loss"] for row in metrics_dataframe]), 10)
-    z = np.power(np.linspace(0.0005, 1.0, len(vc_loss)), 1/8)
+    z = np.power(np.linspace(0.0005, 1.0, len(vc_loss)), 1 / 8)
     colorline(vc_loss, vsr_loss, z=z, cmap=plt.get_cmap('YlOrRd'))
     plt.xlim([np.min(vc_loss), np.max(vc_loss)])
     plt.ylim([np.min(vsr_loss), np.max(vsr_loss)])
@@ -125,7 +126,52 @@ def loss_plot(run_string):
     plt.show()
 
 
+def gradient_stats(run_string):
+    api = wandb.Api()
+    run = api.run(run_string)
+    keys = ["grad_vsr_norm", "grad_vc_norm", "grad_cos_angle"]
+    gradients_dataframe = run.scan_history(keys=keys)
+    gradients_array = np.array(
+        [[row["grad_vsr_norm"], row["grad_vc_norm"], row["grad_cos_angle"]] for row in gradients_dataframe]
+    ).transpose()
+    steps = len(gradients_array[0])
+    steps_per_epoch = 2328
+    epochs = steps // steps_per_epoch
+    per_epoch_average_x = np.arange(steps_per_epoch, steps, steps_per_epoch)
+    grads_reshaped = gradients_array[:, :epochs * steps_per_epoch].reshape(3, -1, steps_per_epoch)
+    for i, x in enumerate(gradients_array):
+        plt.figure(i)
+        plt.title(keys[i])
+        plt.plot(x)
+        plt.plot(moving_average(x, 200))
+        plt.plot(per_epoch_average_x, grads_reshaped[i].mean(axis=1), color='r')
+
+        ticks = np.linspace(0, epochs * steps_per_epoch, epochs + 1)
+        tick_labels = np.linspace(0, epochs, epochs + 1, dtype=int)
+        plt.xticks(ticks, tick_labels)
+
+        plt.legend(["per training batch", "moving average (n=200)", "per epoch average"])
+        plt.xlabel("Epoch")
+        print(f"{keys[i]}: max={x.max()}, min={x.min()}, mean={x.mean()}")
+    grads_conflicts = np.round((grads_reshaped[2] < 0).mean(axis=1), decimals=2)
+    plt.figure(4)
+    plt.plot(grads_conflicts)
+    plt.xlabel("Epoch")
+    plt.xticks(np.linspace(0, len(grads_conflicts), len(grads_conflicts), dtype=int),
+               np.linspace(0, epochs, epochs, dtype=int))
+    plt.ylabel("Ratio of batches with gradient conflicts")
+
+    plt.figure(5)
+    plt.hist(gradients_array[2], bins=50, color='blue', alpha=0.7)
+    plt.title('Distribution of gradient conflicts')
+    plt.xlabel('Value')
+    plt.ylabel('Frequency')
+    plt.grid(True)
+    plt.show()
+
+
 if __name__ == "__main__":
     set_random_seed(777)
-    loss_plot("camarotheboss/VSRVC/zvg2v1fl")
+    gradient_stats("camarotheboss/VSRVC/88eu7200")
+    # loss_plot("camarotheboss/VSRVC/zvg2v1fl")
     # mosaic("vsr", ["../weights/isric 1024"], 4, save_root="../weights", box=(300, 100, 100, 100))
