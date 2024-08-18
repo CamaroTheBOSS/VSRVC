@@ -16,7 +16,8 @@ def parse_args(parser):
     parser.add_argument('--batch_size', default=16, type=int, help='batch size for training')
     parser.add_argument('--epochs', default=30, type=int, help='training epochs')
     parser.add_argument('--lmbda', default=512, type=int, help='distortion/compression ratio')
-    parser.add_argument('--vimeo_path', type=str, help='path to vimeo90k dataset')
+    parser.add_argument('--vimeo_path', type=str, help='path to vimeo90k dataset, if provided vimeo will be used for training')
+    parser.add_argument('--reds_path', type=str, help='path to reds dataset, if provided reds will be used for training')
     parser.add_argument('--num_workers', default=0, type=int, help='num workers in dataloaders')
     parser.add_argument('--enable_wandb', action='store_true', default=False, help='whether to enable wandb')
     parser.add_argument('--sliding_window', default=1, type=int, help='sliding window size for processing video by '
@@ -33,7 +34,8 @@ def get_run_name(params):
     model_type = ' res ' if params.model_type == "vsrvc_res" else ' '
     model_type = ' mv ' if params.model_type == "vsrvc_res_mv" else ' '
     multi_input = ' multi_input' if params.multi_input else ''
-    return f"{prefix}{model_type}{params.lmbda} {params.weighting} x{params.scale}{multi_input}"
+    dataset = "vimeo" if params.vimeo_path is not None else "reds"
+    return f"{prefix}{model_type}{params.lmbda} {params.weighting} x{params.scale}{multi_input} {dataset}"
 
 
 def main(params):
@@ -119,6 +121,7 @@ def main(params):
                          model_type=model_type,
                          scale=params.scale,
                          log_grads=params.log_grads,
+                         dataset_type="vimeo" if params.vimeo_path is not None else "reds",
                          **kwargs)
     if params.mode == 'train':
         my_trainer.train(train_dataloader, test_dataloader, params.epochs)

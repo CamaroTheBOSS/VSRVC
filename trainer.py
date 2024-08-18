@@ -11,7 +11,7 @@ from LibMTL._record import _PerformanceMeter
 from LibMTL.utils import count_parameters
 import LibMTL.weighting as weighting_method
 import LibMTL.architecture as architecture_method
-from datasets import VimeoAugmentation
+from datasets import Augmentation
 
 from logger import Logger, WandbLogger
 from scheduler import MyCosineAnnealingLR
@@ -20,7 +20,7 @@ from scheduler import MyCosineAnnealingLR
 class Trainer(nn.Module):
     def __init__(self, task_dict, weighting, architecture, encoder_class, decoders, decoder_kwargs, rep_grad,
                  multi_input, optim_param, scheduler_param, logging, print_interval, lmbda, model_type, scale,
-                 log_grads, save_path=None, load_path=None, **kwargs):
+                 log_grads, dataset_type, save_path=None, load_path=None, **kwargs):
         super(Trainer, self).__init__()
 
         self.device = torch.device('cuda:0')
@@ -45,7 +45,7 @@ class Trainer(nn.Module):
 
         self.meter = _PerformanceMeter(self.task_dict, self.multi_input)
         self.crop_size = (256, 256)
-        self.augmentation = VimeoAugmentation(multi_input, scale)
+        self.augmentation = Augmentation(multi_input, scale, dataset_type)
 
     def augment_data(self, data, task=None):
         return self.augmentation(data, task, training_mode=self.training)

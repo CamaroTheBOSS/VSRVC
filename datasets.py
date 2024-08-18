@@ -50,11 +50,91 @@ class Vimeo90k(Dataset):
         return len(self.videos)
 
 
-class VimeoAugmentation:
-    def __init__(self, multi_input, scale):
+class Reds(Dataset):
+    def __init__(self, root: str, test_mode: bool = False, sliding_window_size: int = 0, multi_input=False):
+        super().__init__()
+        prefix = "val" if test_mode else "train"
+        self.root = root
+        self.sequences = os.path.join(root, f"{prefix}_sharp")
+
+        self.sliding_window_size = sliding_window_size if 0 < sliding_window_size < 7 else 7
+        self.videos = self.load_paths()
+        self.transform = Compose([ToTensor()])
+        self.multi_input = multi_input
+
+        assert os.path.exists(self.root)
+        assert os.path.exists(self.sequences)
+
+    def load_paths(self):
+        videos = []
+        for sequence in os.listdir(self.sequences):
+            frame_paths = glob(os.path.join(self.sequences, sequence, "*.png"))
+            for i in range(len(frame_paths) - self.sliding_window_size + 1):
+                videos.append([path for path in frame_paths[i:i + self.sliding_window_size]])
+        return videos
+
+    def read_video(self, index):
+        video = []
+        for path in self.videos[index]:
+            video.append(self.transform(Image.open(path).convert("RGB")))
+        return torch.stack(video)
+
+    def __getitem__(self, index: int):
+        video = self.read_video(index)
+        if self.multi_input:
+            return video, torch.tensor(0)
+        return video, {"vc": torch.tensor(0), "vsr": torch.tensor(0)}
+
+    def __len__(self) -> int:
+        return len(self.videos)
+
+
+class Augmentation:
+    def __init__(self, multi_input, scale, dataset_type="vimeo"):
         self.multi_input = multi_input
         self.scale = scale
-        if not multi_input:
+        if dataset_type == "vimeo":
+            self.prepare_vimeo_augmentation()
+        else:
+            self.prepare_reds_augmentation()
+
+    def prepare_reds_augmentation(self):
+        if not self.multi_input:
+            self.crop_size = (512, 1024)
+            self.augmentation = Compose([
+                ColorJiggle(brightness=(0.85, 1.15), contrast=(0.75, 1.15), saturation=(0.75, 1.25), hue=(-0.02, 0.02),
+                            same_on_batch=True, p=1),
+                RandomCrop(size=self.crop_size, same_on_batch=True),
+                RandomVerticalFlip(same_on_batch=True, p=0.5),
+                RandomHorizontalFlip(same_on_batch=True, p=0.5),
+            ])
+            self.resize = Resize((self.crop_size[0] // self.scale, self.crop_size[1] // self.scale))
+        else:
+            self.crop_size = {"vc": (512, 1024), "vsr": (512, 1024)}
+            self.augmentation = {
+                "vc": Compose([
+                    ColorJiggle(brightness=(0.85, 1.15), contrast=(0.75, 1.15), saturation=(0.75, 1.25),
+                                hue=(-0.02, 0.02),
+                                same_on_batch=True, p=1),
+                    RandomCrop(size=self.crop_size["vc"], same_on_batch=True),
+                    RandomVerticalFlip(same_on_batch=True, p=0.5),
+                    RandomHorizontalFlip(same_on_batch=True, p=0.5),
+                ]),
+                "vsr": Compose([
+                    ColorJiggle(brightness=(0.85, 1.15), contrast=(0.75, 1.15), saturation=(0.75, 1.25),
+                                hue=(-0.02, 0.02),
+                                same_on_batch=True, p=1),
+                    RandomCrop(size=self.crop_size["vsr"], same_on_batch=True),
+                    RandomVerticalFlip(same_on_batch=True, p=0.5),
+                    RandomHorizontalFlip(same_on_batch=True, p=0.5),
+                ])}
+            self.resize = {
+                "vc": None,
+                "vsr": Resize((self.crop_size["vsr"][0] // self.scale, self.crop_size["vsr"][1] // self.scale)),
+            }
+
+    def prepare_vimeo_augmentation(self):
+        if not self.multi_input:
             self.crop_size = (256, 256)
             self.augmentation = Compose([
                 ColorJiggle(brightness=(0.85, 1.15), contrast=(0.75, 1.15), saturation=(0.75, 1.25), hue=(-0.02, 0.02),
@@ -63,7 +143,7 @@ class VimeoAugmentation:
                 RandomVerticalFlip(same_on_batch=True, p=0.5),
                 RandomHorizontalFlip(same_on_batch=True, p=0.5),
             ])
-            self.resize = Resize((self.crop_size[0] // scale, self.crop_size[1] // scale))
+            self.resize = Resize((self.crop_size[0] // self.scale, self.crop_size[1] // self.scale))
         else:
             self.crop_size = {"vc": (256, 384), "vsr": (256, 256)}
             self.augmentation = {
@@ -85,7 +165,7 @@ class VimeoAugmentation:
                 ])}
             self.resize = {
                 "vc": None,
-                "vsr": Resize((self.crop_size["vsr"][0] // scale, self.crop_size["vsr"][1] // scale)),
+                "vsr": Resize((self.crop_size["vsr"][0] // self.scale, self.crop_size["vsr"][1] // self.scale)),
             }
 
     def __call__(self, data, task=None, training_mode=True):
