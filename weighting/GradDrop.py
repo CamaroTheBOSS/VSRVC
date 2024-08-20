@@ -23,7 +23,7 @@ class GradDrop(AbsWeighting):
         super(GradDrop, self).__init__()
         
     def backward(self, losses, **kwargs):
-        if kwargs["log_grads"] is not None:
+        if kwargs["log_grads"]:
             raise AttributeError("log_grads not supported in GradDrop weighting method")
         leak = kwargs['leak']
         if self.rep_grad:

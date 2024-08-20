@@ -16,7 +16,7 @@ class GLS(AbsWeighting):
         super(GLS, self).__init__()
         
     def backward(self, losses, **kwargs):
-        if kwargs["log_grads"] is not None:
+        if kwargs["log_grads"]:
             raise AttributeError("log_grads not supported in GLS weighting method")
         loss = torch.pow(losses.prod(), 1./self.task_num)
         loss.backward()

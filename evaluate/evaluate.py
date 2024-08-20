@@ -81,5 +81,6 @@ if __name__ == "__main__":
         "keyframe_interval": 12,
         "adaptation": True
     }
-    eval_all("../weights/VSRVC mv 128 EW x4 reds", eval_cfg)
-    # eval_one("../weights/VC mv 256", 0, eval_cfg, "../weights/vsrvc_res_mv l=128")
+    tested_model = "../weights/VSRVC mv 128 EW x4 vimeo"
+    # eval_all(tested_model, eval_cfg)
+    eval_one(tested_model, 0, eval_cfg, tested_model)

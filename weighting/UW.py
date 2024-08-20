@@ -19,7 +19,7 @@ class UW(AbsWeighting):
         self.loss_scale = nn.Parameter(torch.tensor([-0.5]*self.task_num, device=self.device))
         
     def backward(self, losses, **kwargs):
-        if kwargs["log_grads"] is not None:
+        if kwargs["log_grads"]:
             losses = (losses / (2 * self.loss_scale.exp()) + self.loss_scale / 2)
             self._compute_grad_dim()
             grads = self._compute_grad(losses, mode="backward")

@@ -17,7 +17,7 @@ class EW(AbsWeighting):
         super(EW, self).__init__()
 
     def backward(self, losses, **kwargs):
-        if kwargs["log_grads"] is not None:
+        if kwargs["log_grads"]:
             self._compute_grad_dim()
             grads = self._compute_grad(losses, mode="backward")
             self._reset_grad(grads.sum(0))

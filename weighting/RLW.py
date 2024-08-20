@@ -18,7 +18,7 @@ class RLW(AbsWeighting):
         
     def backward(self, losses, **kwargs):
         batch_weight = F.softmax(torch.randn(self.task_num), dim=-1).to(self.device)
-        if kwargs["log_grads"] is not None:
+        if kwargs["log_grads"]:
             losses = torch.mul(losses, batch_weight)
             self._compute_grad_dim()
             grads = self._compute_grad(losses, mode="backward")

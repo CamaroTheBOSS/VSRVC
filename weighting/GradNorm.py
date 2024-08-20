@@ -45,7 +45,7 @@ class GradNorm(AbsWeighting):
                 new_grads = self._backward_new_grads(loss_weight, grads=grads)
             return loss_weight.cpu().numpy(), new_grads
         else:
-            if kwargs["log_grads"] is not None:
+            if kwargs["log_grads"]:
                 self._compute_grad_dim()
                 grads = self._compute_grad(losses, mode="backward")
                 self._reset_grad(grads.sum(0))
