@@ -50,9 +50,9 @@ class ReconstructionHead(nn.Module):
     def __init__(self, in_channels: int, mid_channels: int):
         super(ReconstructionHead, self).__init__()
         self.reconstruction_trunk = ResidualBlocksWithInputConv(in_channels, mid_channels, num_blocks=3)
-        self.deconv = nn.ConvTranspose2d(mid_channels, 3, 5, stride=2, padding=2, output_padding=1)
+        self.conv = nn.Conv2d(mid_channels, 3, 5, padding=2)
 
     def forward(self, features: torch.Tensor):
         reconstruction = self.reconstruction_trunk(features)
-        reconstruction = self.deconv(reconstruction)
+        reconstruction = self.conv(reconstruction)
         return reconstruction

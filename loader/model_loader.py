@@ -12,7 +12,7 @@ from PIL import Image
 
 import LibMTL.weighting as weighting_method
 import LibMTL.architecture as architecture_method
-from utils import save_frame
+from utils import save_frame, interpolate_frame
 
 SCALES_MIN = 0.11
 SCALES_MAX = 256
@@ -37,6 +37,7 @@ class KeyFrameModel(nn.Module):
         super(KeyFrameModel, self).__init__()
         self.compress = cfg["keyframe_compress_type"]
         self.save_root = cfg["keyframe_save_root"]
+        self.scale = cfg["scale"]
         self.kf_counter = 0
         self.supported_compress_types = ["jpg", "png"]
         self.device = device
@@ -49,7 +50,11 @@ class KeyFrameModel(nn.Module):
         save_frame(filepath, inputs[0, 0])
         byte_size = os.stat(filepath).st_size
         self.kf_counter += 1
-        return [([ByteSize(byte_size)], [''], filepath)]
+        out = {
+            "vsr": interpolate_frame(inputs[0], size=(inputs.size()[-2] * self.scale, inputs.size()[-1] * self.scale)),
+            "vc": [([ByteSize(byte_size)], [''], filepath), ([''], [''], 0)]
+        }
+        return out
 
     def decompress_one(self, inputs):
         if self.compress not in ["jpg", "png"]:
@@ -68,7 +73,7 @@ def load_model(json_file, cfg=None):
         model_data = json.load(f)
     model_type = model_data["model_type"]
     if model_type.startswith("PFrame"):
-        if "iframe_model_path" not in cfg.keys():
+        if "keyframe_compress_type" not in cfg.keys() and "iframe_model_path" not in cfg.keys():
             raise KeyError("iframe_model_path key doesn't exist. Please provide path (str) to it in config")
         if "keyframe_interval" not in cfg.keys():
             raise KeyError("keyframe_interval key doesn't exist. Please provide value (int) in config")
@@ -141,103 +146,16 @@ def load_model(json_file, cfg=None):
                 reconstructed_video.append(self.decompress_one(inp[0]))
             return torch.stack(reconstructed_video, dim=1)
 
-    class PFrameModel(BaseModel):
-        def __init__(self, task_name, encoder_class, decoders, rep_grad, multi_input, device, lmbda, kwargs, cfg):
-            super(PFrameModel, self).__init__(task_name, encoder_class, decoders, rep_grad, multi_input, device,
-                                              kwargs, cfg)
-            self.init_param()
-            self.lmbda = lmbda
-            self.kf_model = None
-            if "keyframe_compress_type" in cfg.keys():
-                self.kf_model = KeyFrameModel(cfg, device)
-            self.iframe_model: IFrameModel = load_model(cfg["iframe_model_path"])
-            self.keyframe_interval = cfg["keyframe_interval"]
-            self.adaptation = cfg["adaptation"]
-
-        def compress_with_adaptation(self, video):
-            out = {task: [] for task in self.task_name}
-            prev_recon = None
-            for i in range(0, video.size()[1]):
-                if i % self.keyframe_interval == 0:
-                    inp = video[:, i:i + 1]
-                    results = self.iframe_model.compress_one(inp)
-                    if self.kf_model is not None:
-                        results["vc"] = self.kf_model.compress_one(inp)
-                        prev_recon = self.kf_model.decompress_one(results["vc"][0])
-                    else:
-                        prev_recon = self.iframe_model.decompress_one(results["vc"][0])
-                    for task, value in results.items():
-                        out[task].append(value)
-                    continue
-                inp = video[:, i - 1:i + 1]
-                s_rep = self.encoder.compress(inp, prev_recon)
-                same_rep = True if not isinstance(s_rep, list) and not self.multi_input else False
-                for tn, task in enumerate(self.task_name):
-                    ss_rep = s_rep[tn] if isinstance(s_rep, list) else s_rep
-                    ss_rep = self._prepare_rep(ss_rep, task, same_rep)
-                    if task == "vc":
-                        results = self.decoders[task].compress(ss_rep)
-                        inp = (ss_rep[0],) + results[0]
-                        prev_recon = self.decoders[task].decompress(*inp)
-                        out[task].append(results)
-                    else:
-                        out[task].append(self.decoders[task](ss_rep))
-            return out
-
-        def compress_no_adaptation(self, video):
-            out = {task: [] for task in self.task_name}
-            for i in range(0, video.size()[1]):
-                if i % self.keyframe_interval == 0:
-                    inp = video[:, i:i + 1]
-                    results = self.iframe_model.compress_one(inp)
-                    if self.kf_model is not None:
-                        results["vc"] = self.kf_model.compress_one(inp)
-                    for task, value in results.items():
-                        out[task].append(value)
-                    continue
-                inp = video[:, i - 1:i + 1]
-                s_rep = self.encoder.compress(inp)
-                same_rep = True if not isinstance(s_rep, list) and not self.multi_input else False
-                for tn, task in enumerate(self.task_name):
-                    ss_rep = s_rep[tn] if isinstance(s_rep, list) else s_rep
-                    ss_rep = self._prepare_rep(ss_rep, task, same_rep)
-                    if task == "vc":
-                        out[task].append(self.decoders[task].compress(ss_rep))
-                    else:
-                        out[task].append(self.decoders[task](ss_rep))
-            return out
-
-        def compress(self, video):
-            if self.adaptation:
-                return self.compress_with_adaptation(video)
-            return self.compress_no_adaptation(video)
-
-        def decompress(self, inputs):
-            reconstructed_video = []
-            prev_feat = None
-            for i, inp in enumerate(inputs):
-                if i % self.keyframe_interval == 0:
-                    if self.kf_model is not None:
-                        recon = self.kf_model.decompress_one(inp[0])
-                    else:
-                        recon = self.iframe_model.decompress_one(inp[0])
-                else:
-                    inp = (prev_feat,) + inp[0]
-                    recon = self.decoders["vc"].decompress(*inp)
-                prev_feat = self.encoder.extract_feats(recon)
-                reconstructed_video.append(recon)
-            return torch.stack(reconstructed_video, dim=1)
-
     class PFrameModelWithMotion(BaseModel):
         def __init__(self, task_name, encoder_class, decoders, rep_grad, multi_input, device, lmbda, kwargs, cfg):
             super(PFrameModelWithMotion, self).__init__(task_name, encoder_class, decoders, rep_grad, multi_input,
                                                         device, kwargs, cfg)
             self.init_param()
             self.lmbda = lmbda
-            self.kf_model = None
             if "keyframe_compress_type" in cfg.keys():
-                self.kf_model = KeyFrameModel(cfg, device)
-            self.iframe_model: IFrameModel = load_model(cfg["iframe_model_path"])
+                self.iframe_model = KeyFrameModel(cfg, device)
+            else:
+                self.iframe_model: IFrameModel = load_model(cfg["iframe_model_path"])
             self.keyframe_interval = cfg["keyframe_interval"]
             self.adaptation = cfg["adaptation"]
 
@@ -247,9 +165,6 @@ def load_model(json_file, cfg=None):
                 if i % self.keyframe_interval == 0:
                     inp = video[:, i:i + 1]
                     results = self.iframe_model.compress_one(inp)
-                    if self.kf_model is not None:
-                        results["vc"] = self.kf_model.compress_one(inp)
-                    results["vc"].append(([''], [''], 0))
                     for task, value in results.items():
                         out[task].append(value)
                     continue
@@ -272,12 +187,7 @@ def load_model(json_file, cfg=None):
                 if i % self.keyframe_interval == 0:
                     inp = video[:, i:i + 1]
                     results = self.iframe_model.compress_one(inp)
-                    if self.kf_model is not None:
-                        results["vc"] = self.kf_model.compress_one(inp)
-                        prev_recon = self.kf_model.decompress_one(results["vc"][0])
-                    else:
-                        prev_recon = self.iframe_model.decompress_one(results["vc"][0])
-                    results["vc"].extend([([''], [''], 0)])
+                    prev_recon = self.iframe_model.decompress_one(results["vc"][0])
                     for task, value in results.items():
                         out[task].append(value)
                     continue
@@ -306,10 +216,7 @@ def load_model(json_file, cfg=None):
             prev_feat = None
             for i, inp in enumerate(inputs):
                 if i % self.keyframe_interval == 0:
-                    if self.kf_model is not None:
-                        recon = self.kf_model.decompress_one(inp[0])
-                    else:
-                        recon = self.iframe_model.decompress_one(inp[0])
+                    recon = self.iframe_model.decompress_one(inp[0])
                 else:
                     recon_offsets = self.encoder.decompress(*inp[1])
                     align_feat = self.encoder.align_features(prev_feat, recon_offsets)
@@ -319,6 +226,7 @@ def load_model(json_file, cfg=None):
                 reconstructed_video.append(recon)
             return torch.stack(reconstructed_video, dim=1)
 
+    cfg["scale"] = model_data["scale"]
     kwargs = dict(task_name=model_data["task_name"],
                   encoder_class=encoder_class,
                   decoders=decoders,
@@ -331,8 +239,6 @@ def load_model(json_file, cfg=None):
     supported_model_types = ['IFrame', 'PFrame', 'PFrameWithMotion']
     if model_type == "IFrame":
         model = IFrameModel(**kwargs).to(device)
-    elif model_type == "PFrame":
-        model = PFrameModel(**kwargs).to(device)
     elif model_type == "PFrameWithMotion":
         model = PFrameModelWithMotion(**kwargs).to(device)
     else:

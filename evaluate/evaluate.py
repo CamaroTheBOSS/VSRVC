@@ -12,10 +12,9 @@ from utils import save_video
 def get_eval_filename(cfg: dict):
     name = "eval"
     if 'iframe_model_path' in cfg.keys():
-        if 'keyframe_compress_type' in cfg.keys():
-            name += ' ' + cfg['keyframe_compress_type']
-        else:
-            name += ' ' + cfg['iframe_model_path'].split(' ')[-1]
+        name += ' ' + cfg['iframe_model_path'].split(' ')[-1]
+    elif 'keyframe_compress_type' in cfg.keys():
+        name += ' ' + cfg['keyframe_compress_type']
     if 'keyframe_interval' in cfg.keys():
         name += ' ' + str(cfg['keyframe_interval'])
     if 'adaptation' in cfg.keys():
@@ -75,12 +74,11 @@ def eval_all(model_root: str, cfg=None):
 if __name__ == "__main__":
     set_random_seed(777)
     eval_cfg = {
-        # "keyframe_compress_type": "jpg",
-        # "keyframe_save_root": "../weights/kfs",
-        "iframe_model_path": "D:\\Code\\VSRVC_LibMTL\\weights\\ISRIC 128",
+        "keyframe_compress_type": "jpg",
+        "keyframe_save_root": "../weights/kfs",
         "keyframe_interval": 12,
         "adaptation": True
     }
     tested_model = "../weights/VSRVC mv 128 EW x4 vimeo"
     # eval_all(tested_model, eval_cfg)
-    eval_one(tested_model, 0, eval_cfg, tested_model)
+    eval_one(tested_model, 5, eval_cfg, tested_model)

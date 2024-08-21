@@ -122,11 +122,12 @@ def get_multiple_vsr(eval_files, db_file):
 if __name__ == "__main__":
     database = "./db_veryslow_uvg.json"
     eval_files = [
-        "../weights/VSRVC mv 128 EW x4/eval 128 12 adapt.json",
-        "../weights/VSRVC mv 128 EW x4/eval jpg 12 adapt.json",
-        "../weights/VSRVC mv 128 EW x4/eval jpg 36 adapt.json",
-        "../weights/VSRVC mv 128 EW x4 reds/eval jpg 12 adapt.json",
-        "../weights/VSRVC mv 128 EW x4 reds/eval 128 12 adapt.json",
+        "../weights/backup/VSRVC mv 128 EW x4/eval 128 12 adapt.json",
+        "../weights/backup/VSRVC mv 128 EW x4/eval jpg 12 adapt.json",
+        "../weights/backup/VSRVC mv 128 EW x4/eval jpg 36 adapt.json",
+        "../weights/backup/VSRVC mv 128 EW x4 reds/eval jpg 12 adapt.json",
+        "../weights/backup/VSRVC mv 128 EW x4 reds/eval 128 12 adapt.json",
+        "../weights//VSRVC mv 128 EW x4 vimeo/eval jpg 12 adapt.json",
     ]
     legend = [
         "VSRVC MV λp=128, λi=128, 12",
@@ -134,6 +135,7 @@ if __name__ == "__main__":
         "VSRVC MV λp=128, JPG, 36",
         "VSRVC REDS MV λp=128, JPG, 12",
         "VSRVC REDS MV λp=128, λi=128, 12",
+        "VSRVC VIMEO MV λp=128, JPG, 12",
         ]
     plot_vc_multiple(eval_files, database)
     plt.legend(["AVC", "HEVC"] + legend)

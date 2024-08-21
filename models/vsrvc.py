@@ -11,7 +11,7 @@ class VSRVCMotionResidualEncoder(nn.Module):
     def __init__(self,  in_channels: int = 3, mid_channels: int = 64, out_channels: int = 64, num_blocks: int = 3):
         super(VSRVCMotionResidualEncoder, self).__init__()
         self.feat_extractor = nn.Sequential(*[
-            nn.Conv2d(in_channels, mid_channels, 5, 2, 2),
+            nn.Conv2d(in_channels, mid_channels, 5, 1, 2),
             ResidualBlocksWithInputConv(in_channels=mid_channels, out_channels=mid_channels, num_blocks=num_blocks)
         ])
         self.motion_estimator = MotionEstimator(mid_channels, 144)
@@ -96,44 +96,10 @@ class VCMotionResidualDecoder(nn.Module):
         return recon_frame, [res_p_bits, res_hp_bits, mv_p_bits, mv_hp_bits]
 
 
-####################################################################
-####################################################################
-####################################################################
-
-
-class VSRVCResidualEncoder(nn.Module):
-    def __init__(self,  in_channels: int = 3, mid_channels: int = 64, out_channels: int = 64, num_blocks: int = 3):
-        super(VSRVCResidualEncoder, self).__init__()
-        self.layers = nn.Sequential(*[
-            nn.Conv2d(in_channels, mid_channels, 5, 2, 2),
-            ResidualBlocksWithInputConv(in_channels=mid_channels, out_channels=out_channels, num_blocks=num_blocks)
-        ])
-
-    def compress(self, x, prev_recon=None):
-        B, N, C, H, W = x.size()
-        assert (N == 2)
-        prev_feat = self.extract_feats(x[:, 0])
-        curr_feat = self.extract_feats(x[:, 1])
-        if prev_recon is not None:
-            prev_recon_feat = self.extract_feats(prev_recon)
-            return [(prev_recon_feat, curr_feat), (prev_feat, curr_feat, x[:, -1])]
-        return [(prev_feat, curr_feat), (prev_feat, curr_feat, x[:, -1])]
-
-    def extract_feats(self, x):
-        return self.layers(x)
-
-    def forward(self, x):
-        B, N, C, H, W = x.size()
-        assert (N == 2)
-        prev_feat = self.extract_feats(x[:, 0])
-        curr_feat = self.extract_feats(x[:, 1])
-        return [(prev_feat, curr_feat), (prev_feat, curr_feat, x[:, -1])]
-
-
-class VSRResidualDecoder(nn.Module):
+class VSRMotionResidualDecoder(nn.Module):
     def __init__(self, in_channels: int, mid_channels: int, scale: int = 2):
-        super(VSRResidualDecoder, self).__init__()
-        self.reconstruction_trunk = ResidualBlocksWithInputConv(2 * in_channels, mid_channels, 3)
+        super(VSRMotionResidualDecoder, self).__init__()
+        self.reconstruction_trunk = ResidualBlocksWithInputConv(in_channels, mid_channels, 3)
         num_layers = int(torch.log2(torch.tensor(scale)))
         upscale_layers = []
         for _ in range(num_layers):
@@ -147,8 +113,8 @@ class VSRResidualDecoder(nn.Module):
         self.lrelu = nn.LeakyReLU(negative_slope=0.1, inplace=True)
 
     def forward(self, x):
-        prev_feat, curr_feat, lqs = x
-        reconstruction = self.reconstruction_trunk(torch.cat([prev_feat, curr_feat], dim=1))
+        features, lqs = x
+        reconstruction = self.reconstruction_trunk(features)
         reconstruction = self.upsampler(reconstruction)
         reconstruction = self.lrelu(self.conv_hr(reconstruction))
         reconstruction = self.conv_last(reconstruction)
@@ -156,42 +122,11 @@ class VSRResidualDecoder(nn.Module):
         return reconstruction
 
 
-class VCResidualDecoder(nn.Module):
-    def __init__(self, in_channels: int, mid_channels: int):
-        super(VCResidualDecoder, self).__init__()
-        self.compressor = HyperpriorCompressAI(in_channels, mid_channels, mid_channels)
-        self.reconstruction_head = ReconstructionHead(in_channels=mid_channels, mid_channels=mid_channels)
-
-    def compress(self, x: torch.Tensor):
-        prev_feat, curr_feat = x
-        res = curr_feat - prev_feat
-        prior_string, hyperprior_string, shape = self.compressor.compress(res)
-        return [(prior_string, hyperprior_string, shape)]
-
-    def decompress(self, prev_feat, prior_string, hyperprior_string, shape):
-        recon_res = self.compressor.decompress(prior_string, hyperprior_string, shape)
-        recon_feat = recon_res + prev_feat
-        recon_frame = self.reconstruction_head(recon_feat)
-        return recon_frame
-
-    def forward(self, x: torch.Tensor):
-        prev_feat, curr_feat = x
-        res = curr_feat - prev_feat
-        decompressed_data, prior_bits, hyperprior_bits = self.compressor.train_compression_decompression(res)
-        recon_feat = decompressed_data + prev_feat
-        recon_frame = self.reconstruction_head(recon_feat)
-        return recon_frame, [prior_bits, hyperprior_bits]
-
-####################################################################
-####################################################################
-####################################################################
-
-
-class VSRVCEncoder(nn.Module):
+class ISRICEncoder(nn.Module):
     def __init__(self,  sliding_window: int = 1, mid_channels: int = 64, out_channels: int = 64, num_blocks: int = 3):
-        super(VSRVCEncoder, self).__init__()
+        super(ISRICEncoder, self).__init__()
         self.layers = nn.Sequential(*[
-            nn.Conv2d(3 * sliding_window, mid_channels, 5, 2, 2),
+            nn.Conv2d(3 * sliding_window, mid_channels, 5, 1, 2),
             ResidualBlocksWithInputConv(in_channels=mid_channels, out_channels=out_channels, num_blocks=num_blocks)
         ])
 
@@ -205,7 +140,7 @@ class ISRDecoder(nn.Module):
     def __init__(self, in_channels: int, mid_channels: int, scale: int = 2):
         super(ISRDecoder, self).__init__()
         self.reconstruction_trunk = ResidualBlocksWithInputConv(in_channels, mid_channels, 3)
-        num_layers = int(torch.log2(torch.tensor(scale))) + 1
+        num_layers = int(torch.log2(torch.tensor(scale)))
         upscale_layers = []
         for _ in range(num_layers):
             upscale_layers.append(PixelShufflePack(mid_channels, mid_channels, 2, upsample_kernel=3))

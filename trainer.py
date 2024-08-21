@@ -98,6 +98,7 @@ class Trainer(nn.Module):
                 "lmbda": self.lmbda,
                 "encoder_class": encoder_class.__name__,
                 "model_type": self.model_type,
+                "scale": self.scale,
                 "decoders": [
                     {
                         "task": task,
