@@ -2,7 +2,7 @@
 Double task model for video compression and super-resolution
 
 ### Prerequisites
-- python3.8
+- python 3.8
 - pytorch 1.8.1
 - LibMTL
 - CompressAI
@@ -30,6 +30,7 @@ python setup.py bdist_wheel --dist-dir dist/
 pip install dist/compressai-*.whl
 ```
 Environment was tested on both Linux and Windows with CUDA 12.1 (tested on 22.08.2024)
+
 3. Install VSRVC remaining dependencies 
 ```
 pip install wandb kornia==0.6.8 torchmetrics==1.2.1 opencv-python
