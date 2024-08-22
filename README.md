@@ -29,13 +29,12 @@ pip install wheel
 python setup.py bdist_wheel --dist-dir dist/
 pip install dist/compressai-*.whl
 ```
-Environment was tested on both Linux and Windows with CUDA 12.1 (tested on 22.08.2024)
 
 3. Install VSRVC remaining dependencies 
 ```
 pip install wandb kornia==0.6.8 torchmetrics==1.2.1 opencv-python
 ```
-
+Environment was tested on both Linux and Windows with CUDA 12.1 (tested on 22.08.2024)
 ### Training
 ```commandline
 python main.py --enable_wandb --weighting EW --scale 4 --model_type vsrvc_res_mv --save_path "./weights" --lmbda 128 --epochs 30 --mode train --num_workers 1 --optim adamw --vimeo_path ../Datasets/VIMEO90k --seed 777 --scheduler mycos --vsr --vc
