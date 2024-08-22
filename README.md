@@ -14,20 +14,32 @@ pip install torch==1.8.1+cu111 torchvision==0.9.1+cu111 torchaudio==0.8.1 -f htt
 ```
 
 2. Install external packages: LibMTL and CompressAI
+
+LibMTL
 ```
+# LibMTL
 mkdir external
 cd external
 git clone git@github.com:median-research-group/LibMTL.git
 cd LibMTL
 pip install -r requirements.txt
 pip install -e .
+```
 
+CompressAI (Windows)
+```
+# CompressAI
 cd ..
 git clone git@github.com:InterDigitalInc/CompressAI.git
 cd CompressAI
 pip install wheel
 python setup.py bdist_wheel --dist-dir dist/
 pip install dist/compressai-*.whl
+```
+
+CompressAI (Linux)
+```
+pip install compressai
 ```
 
 3. Install VSRVC remaining dependencies 
