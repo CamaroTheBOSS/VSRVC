@@ -14,7 +14,7 @@ def get_plot_linestyles():
 
 def load_eval_file(eval_file):
     with open(eval_file) as f:
-        data = json.load(f)
+         data = json.load(f)
     for key, value in data.items():
         if not key == "meta":
             data[key] = np.array(value)
@@ -122,20 +122,14 @@ def get_multiple_vsr(eval_files, db_file):
 if __name__ == "__main__":
     database = "./db_veryslow_uvg.json"
     eval_files = [
-        "../weights/backup/VSRVC mv 128 EW x4/eval 128 12 adapt.json",
-        "../weights/backup/VSRVC mv 128 EW x4/eval jpg 12 adapt.json",
-        "../weights/backup/VSRVC mv 128 EW x4/eval jpg 36 adapt.json",
-        "../weights/backup/VSRVC mv 128 EW x4 reds/eval jpg 12 adapt.json",
-        "../weights/backup/VSRVC mv 128 EW x4 reds/eval 128 12 adapt.json",
         "../weights//VSRVC mv 128 EW x4 vimeo/eval jpg 12 adapt.json",
+        "../weights//VSRVC mv 128 EW x4 vimeo/eval 128 12 adapt.json",
+        "../weights//ISRIC 128 EW x4 vimeo/eval.json",
     ]
     legend = [
-        "VSRVC MV λp=128, λi=128, 12",
-        "VSRVC MV λp=128, JPG, 12",
-        "VSRVC MV λp=128, JPG, 36",
-        "VSRVC REDS MV λp=128, JPG, 12",
-        "VSRVC REDS MV λp=128, λi=128, 12",
-        "VSRVC VIMEO MV λp=128, JPG, 12",
+        "VSRVC vimeo λp=128, JPG, 12",
+        "VSRVC vimeo λp=128, λi=128, 12",
+        "ISRIC vimeo λi=128",
         ]
     plot_vc_multiple(eval_files, database)
     plt.legend(["AVC", "HEVC"] + legend)

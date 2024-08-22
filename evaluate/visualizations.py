@@ -171,6 +171,6 @@ def gradient_stats(run_string):
 
 if __name__ == "__main__":
     set_random_seed(777)
-    gradient_stats("camarotheboss/VSRVC/88eu7200")
-    # loss_plot("camarotheboss/VSRVC/zvg2v1fl")
+    gradient_stats("camarotheboss/VSRVC/iuljasi2")
+    loss_plot("camarotheboss/VSRVC/iuljasi2")
     # mosaic("vsr", ["../weights/isric 1024"], 4, save_root="../weights", box=(300, 100, 100, 100))

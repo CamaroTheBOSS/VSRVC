@@ -8,7 +8,7 @@ from config import MyLibMTL_args, prepare_args
 from trainer import Trainer
 from metrics import CompressionTaskMetrics, RateDistortionLoss, QualityMetrics, VSRLoss
 import wandb
-from training_configs import vsrvc, vsrvc_residual, vsrvc_motion_residual
+from training_configs import vsrvc, vsrvc_motion_residual
 
 
 def parse_args(parser):
@@ -30,8 +30,10 @@ def parse_args(parser):
 
 
 def get_run_name(params):
-    prefix = ('VSR' if params.vsr else '') + ('VC' if params.vc else '')
-    model_type = ' res ' if params.model_type == "vsrvc_res" else ' '
+    if params.model_type == "vsrvc":
+        prefix = ('ISR' if params.vsr else '') + ('IC' if params.vc else '')
+    else:
+        prefix = ('VSR' if params.vsr else '') + ('VC' if params.vc else '')
     model_type = ' mv ' if params.model_type == "vsrvc_res_mv" else ' '
     multi_input = ' multi_input' if params.multi_input else ''
     dataset = "vimeo" if params.vimeo_path is not None else "reds"
@@ -42,8 +44,6 @@ def main(params):
     kwargs, optim_param, scheduler_param = prepare_args(params)
     if params.model_type == "vsrvc":
         f = vsrvc
-    elif params.model_type == "vsrvc_res":
-        f = vsrvc_residual
     elif params.model_type == "vsrvc_res_mv":
         f = vsrvc_motion_residual
     else:
