@@ -80,6 +80,6 @@ if __name__ == "__main__":
         "keyframe_interval": 12,
         "adaptation": True
     }
-    tested_model = "../weights/VSRVC mv 128 EW x4 vimeo"
+    tested_model = "../weights/VSRVC mv 128 GradNorm x4 vimeo"
     eval_all(tested_model, eval_cfg)
-    # eval_one(tested_model, 5, eval_cfg, tested_model)
+    eval_one(tested_model, 5, eval_cfg, tested_model)

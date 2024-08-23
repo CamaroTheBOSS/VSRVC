@@ -8,7 +8,7 @@ from config import MyLibMTL_args, prepare_args
 from trainer import Trainer
 from metrics import CompressionTaskMetrics, RateDistortionLoss, QualityMetrics, VSRLoss
 import wandb
-from training_configs import vsrvc, vsrvc_motion_residual
+from training_configs import vsrvc, vsrvc_motion_residual, vsrvc_shallow_encoder
 
 
 def parse_args(parser):
@@ -34,7 +34,13 @@ def get_run_name(params):
         prefix = ('ISR' if params.vsr else '') + ('IC' if params.vc else '')
     else:
         prefix = ('VSR' if params.vsr else '') + ('VC' if params.vc else '')
-    model_type = ' mv ' if params.model_type == "vsrvc_res_mv" else ' '
+
+    model_type = ' '
+    if params.model_type == "vsrvc_res_mv":
+        model_type = ' mv '
+    elif params.model_type == "vsrvc_shallow":
+        model_type = ' shallow '
+
     multi_input = ' multi_input' if params.multi_input else ''
     dataset = "vimeo" if params.vimeo_path is not None else "reds"
     return f"{prefix}{model_type}{params.lmbda} {params.weighting} x{params.scale}{multi_input} {dataset}"
@@ -46,6 +52,8 @@ def main(params):
         f = vsrvc
     elif params.model_type == "vsrvc_res_mv":
         f = vsrvc_motion_residual
+    elif params.model_type == "vsrvc_shallow":
+        f = vsrvc_shallow_encoder
     else:
         raise ValueError("Unrecognized model_type. Supported ones are: vsrvc, vsrvc_res")
     train_set, test_set, encoder_class, decoders, kwargs, decoder_kwargs, model_type = f(params, kwargs)

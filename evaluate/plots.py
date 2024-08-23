@@ -122,13 +122,13 @@ def get_multiple_vsr(eval_files, db_file):
 if __name__ == "__main__":
     database = "./db_veryslow_uvg.json"
     eval_files = [
-        "../weights//VSRVC mv 128 EW x4 vimeo/eval jpg 12 adapt.json",
         "../weights//VSRVC mv 128 EW x4 vimeo/eval 128 12 adapt.json",
+        "../weights//VSRVC mv 128 GradNorm x4 vimeo/eval 128 12 adapt.json",
         "../weights//ISRIC 128 EW x4 vimeo/eval.json",
     ]
     legend = [
-        "VSRVC vimeo λp=128, JPG, 12",
-        "VSRVC vimeo λp=128, λi=128, 12",
+        "VSRVC vimeo λp=128, λi=128, 12 Equal Weighting",
+        "VSRVC vimeo λp=128, λi=128, 12 GradNorm",
         "ISRIC vimeo λi=128",
         ]
     plot_vc_multiple(eval_files, database)

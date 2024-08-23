@@ -6,7 +6,7 @@ from datasets import Vimeo90k, Reds
 from models.vsrvc import (
     ISRICEncoder, ISRDecoder, ICDecoder,
     VSRVCMotionResidualEncoder, VCMotionResidualDecoder, VSRMotionResidualDecoder,
-    DummyVSRDecoder, DummyVCDecoder
+    DummyVSRDecoder, DummyVCDecoder, VCDoubleCompressorDecoder, VSRVCShallowEncoder
 )
 
 
@@ -97,4 +97,50 @@ def vsrvc_motion_residual(params, kwargs):
         'num_blocks': 3,
     }
     model_type = "PFrameWithMotion"
+    return train_set, test_set, encoder_class, decoders, kwargs, decoder_kwargs, model_type
+
+
+def vsrvc_shallow_encoder(params, kwargs):
+    dataset_class, dataset_path = get_dataset_info(params)
+    if params.multi_input:
+        train_set = {
+            "vc": dataset_class(dataset_path, sliding_window_size=2, multi_input=params.multi_input),
+            "vsr": dataset_class(dataset_path, sliding_window_size=2, multi_input=params.multi_input)
+        }
+        test_set = {
+            "vc": dataset_class(dataset_path, test_mode=True, sliding_window_size=2, multi_input=params.multi_input),
+            "vsr": dataset_class(dataset_path, test_mode=True, sliding_window_size=2, multi_input=params.multi_input)
+        }
+    else:
+        train_set = dataset_class(dataset_path, sliding_window_size=2)
+        test_set = dataset_class(dataset_path, test_mode=True, sliding_window_size=2)
+    decoder_kwargs: Dict[str, dict] = {}
+    decoders: nn.ModuleDict[str, nn.Module] = nn.ModuleDict({})
+    if params.vc:
+        decoder_kwargs["vc"] = {
+            'in_channels': 64,
+            'mid_channels': 64,
+        }
+        decoders["vc"] = VCDoubleCompressorDecoder(**decoder_kwargs['vc'])
+    else:
+        decoder_kwargs["vc"] = {}
+        decoders["vc"] = DummyVCDecoder()
+    if params.vsr:
+        decoder_kwargs["vsr"] = {
+            'in_channels': 64,
+            'mid_channels': 64,
+            "scale": params.scale,
+        }
+        decoders["vsr"] = VSRMotionResidualDecoder(**decoder_kwargs['vsr'])
+    else:
+        decoder_kwargs["vsr"] = {}
+        decoders["vsr"] = DummyVSRDecoder()
+    encoder_class = VSRVCShallowEncoder
+    kwargs["arch_args"]["encoder_kwargs"] = {
+        'in_channels': 3,
+        'mid_channels': 64,
+        'out_channels': 64,
+        'num_blocks': 3,
+    }
+    model_type = "PFrameNoMotionEncoder"
     return train_set, test_set, encoder_class, decoders, kwargs, decoder_kwargs, model_type
