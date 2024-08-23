@@ -333,28 +333,3 @@ class Trainer(nn.Module):
         self.meter.reinit()
         if return_improvement:
             return improvement
-
-    def get_gradients(self, losses, mode):
-        self.model._compute_grad_dim()
-        if not self.rep_grad:
-            grads = torch.zeros(self.task_num, self.model.grad_dim).to(self.device)
-            for tn in range(self.task_num):
-                if mode == 'backward':
-                    losses[tn].backward(retain_graph=True) if (tn + 1) != self.task_num else losses[tn].backward()
-                    grads[tn] = self._grad2vec()
-                elif mode == 'autograd':
-                    grad = list(torch.autograd.grad(losses[tn], self.model.get_share_params(), retain_graph=True))
-                    grads[tn] = torch.cat([g.reshape(-1) for g in grad])
-                else:
-                    raise ValueError('No support {} mode for gradient computation')
-                self.model.zero_grad_share_params()
-        else:
-            if not isinstance(self.rep, dict):
-                grads = torch.zeros(self.task_num, *self.model.rep.size()).to(self.device)
-            else:
-                grads = [torch.zeros(*self.model.rep[task].size()) for task in self.task_name]
-            for tn, task in enumerate(self.task_name):
-                if mode == 'backward':
-                    losses[tn].backward(retain_graph=True) if (tn + 1) != self.task_num else losses[tn].backward()
-                    grads[tn] = self.model.rep_tasks[task].grad.data.clone()
-        return grads
