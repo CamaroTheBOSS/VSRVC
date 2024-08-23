@@ -323,10 +323,10 @@ class Trainer(nn.Module):
                         self.meter.update(test_pred, test_gt, task)
 
         self.meter.record_time('end')
-        results = self.meter.get_score()
+        self.meter.get_score()
         for task in self.task_name:
             for i, metric_name in enumerate(self.task_dict[task]["metrics"]):
-                self.logger.log(task, metric_name, results[task][i], mode="val")
+                self.logger.log(task, metric_name, self.meter.results[task][i], mode="val")
         self.logger.push(mode="val")
         self.meter.display(epoch=epoch, mode=mode)
         improvement = self.meter.improvement
