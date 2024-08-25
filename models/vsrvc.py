@@ -15,6 +15,13 @@ class VSRVCShallowEncoder(nn.Module):
             ResidualBlocksWithInputConv(in_channels=mid_channels, out_channels=out_channels, num_blocks=num_blocks)
         ])
 
+    def compress(self, prev_recon, x):
+        B, N, C, H, W = x.size()
+        assert (N == 2)
+        curr_feat = self.extract_feats(x[:, 1])
+        prev_recon_feat = self.extract_feats(prev_recon)
+        return [(prev_recon_feat, curr_feat), (curr_feat, x[:, -1])]
+
     def extract_feats(self, x):
         return self.feat_extractor(x)
 
@@ -36,13 +43,19 @@ class VCDoubleCompressorDecoder(nn.Module):
         self.reconstruction_head = ReconstructionHead(in_channels=mid_channels, mid_channels=mid_channels)
 
     def compress(self, x):
-        align_feat, curr_feat, mv_p_string, mv_hp_string, mv_shape = x
+        prev_recon_feat, curr_feat = x
+        offsets = self.motion_estimator(prev_recon_feat, curr_feat)
+        mv_p_string, mv_hp_string, mv_shape = self.motion_compressor.compress(offsets)
+        recon_offsets = self.motion_compressor.decompress(mv_p_string, mv_hp_string, mv_shape)
+        align_feat = self.motion_compensator(prev_recon_feat, recon_offsets)
         res = curr_feat - align_feat
-        res_p_string, res_hp_string, res_shape = self.compressor.compress(res)
+        res_p_string, res_hp_string, res_shape = self.residual_compressor.compress(res)
         return [(res_p_string, res_hp_string, res_shape), (mv_p_string, mv_hp_string, mv_shape)]
 
-    def decompress(self, align_feat, prior_string, hyperprior_string, shape):
-        recon_res = self.compressor.decompress(prior_string, hyperprior_string, shape)
+    def decompress(self, prev_recon_feat, res_p_string, res_hp_string, res_shape, mv_p_string, mv_hp_string, mv_shape):
+        recon_offsets = self.motion_compressor.decompress(mv_p_string, mv_hp_string, mv_shape)
+        align_feat = self.motion_compensator(prev_recon_feat, recon_offsets)
+        recon_res = self.residual_compressor.decompress(res_p_string, res_hp_string, res_shape)
         recon_feat = recon_res + align_feat
         recon_frame = self.reconstruction_head(recon_feat)
         return recon_frame
@@ -73,7 +86,7 @@ class VSRVCMotionResidualEncoder(nn.Module):
     def extract_feats(self, x):
         return self.feat_extractor(x)
 
-    def compress_with_prev_recon(self, prev_recon, x):
+    def compress(self, prev_recon, x):
         B, N, C, H, W = x.size()
         assert (N == 2)
         prev_feat = self.extract_feats(x[:, 0])
@@ -91,16 +104,16 @@ class VSRVCMotionResidualEncoder(nn.Module):
         out_vc = (cp_data[1][0], curr_feat,) + cp_data[1][1:]
         return [out_vc, out_vsr]
 
-    def compress(self, x):
-        B, N, C, H, W = x.size()
-        assert (N == 2)
-        prev_feat = self.extract_feats(x[:, 0])
-        curr_feat = self.extract_feats(x[:, 1])
-        offsets = self.motion_estimator(prev_feat, curr_feat)
-        mv_p_string, mv_hp_string, shape = self.motion_compressor.compress(offsets)
-        recon_offsets = self.motion_compressor.decompress(mv_p_string, mv_hp_string, shape)
-        align_feat = self.motion_compensator(prev_feat, recon_offsets)
-        return [(align_feat, curr_feat, mv_p_string, mv_hp_string, shape), (align_feat, x[:, -1])]
+    # def compress(self, x):
+    #     B, N, C, H, W = x.size()
+    #     assert (N == 2)
+    #     prev_feat = self.extract_feats(x[:, 0])
+    #     curr_feat = self.extract_feats(x[:, 1])
+    #     offsets = self.motion_estimator(prev_feat, curr_feat)
+    #     mv_p_string, mv_hp_string, shape = self.motion_compressor.compress(offsets)
+    #     recon_offsets = self.motion_compressor.decompress(mv_p_string, mv_hp_string, shape)
+    #     align_feat = self.motion_compensator(prev_feat, recon_offsets)
+    #     return [(align_feat, curr_feat, mv_p_string, mv_hp_string, shape), (align_feat, x[:, -1])]
 
     def decompress(self, mv_p_string, mv_hp_string, shape):
         recon_offsets = self.motion_compressor.decompress(mv_p_string, mv_hp_string, shape)

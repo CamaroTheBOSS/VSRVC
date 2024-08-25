@@ -124,11 +124,19 @@ if __name__ == "__main__":
     eval_files = [
         "../weights//VSRVC mv 128 EW x4 vimeo/eval 128 12 adapt.json",
         "../weights//VSRVC mv 128 GradNorm x4 vimeo/eval 128 12 adapt.json",
+        "../weights//VSRVC mv 128 DB_MTL x4 vimeo/eval 128 12 adapt.json",
+        "../weights//VSRVC shallow 128 EW x4 vimeo/eval 128 12 adapt.json",
+        "../weights//VSRVC shallow 128 GradNorm x4 vimeo/eval 128 12 adapt.json",
+        "../weights//VSRVC shallow 128 DB_MTL x4 vimeo/eval 128 12 adapt.json",
         "../weights//ISRIC 128 EW x4 vimeo/eval.json",
     ]
     legend = [
-        "VSRVC vimeo λp=128, λi=128, 12 Equal Weighting",
-        "VSRVC vimeo λp=128, λi=128, 12 GradNorm",
+        "mv λp=128, λi=128, 12 Equal Weighting",
+        "mv λp=128, λi=128, 12 GradNorm",
+        "mv λp=128, λi=128, 12 DB_MTL",
+        "shallow λp=128, λi=128, 12 Equal Weighting",
+        "shallow λp=128, λi=128, 12 GradNorm",
+        "shallow λp=128, λi=128, 12 DB_MTL",
         "ISRIC vimeo λi=128",
         ]
     plot_vc_multiple(eval_files, database)
