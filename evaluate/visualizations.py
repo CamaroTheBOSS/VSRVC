@@ -110,67 +110,104 @@ def make_segments(x, y):
     return segments
 
 
-def loss_plot(run_string):
-    api = wandb.Api()
-    run = api.run(run_string)
-    metrics_dataframe = run.scan_history(keys=["train_vc_loss", "train_vsr_loss"])
-    vc_loss = moving_average(np.array([row["train_vc_loss"] for row in metrics_dataframe]), 10)
-    vsr_loss = moving_average(np.array([row["train_vsr_loss"] for row in metrics_dataframe]), 10)
-    z = np.power(np.linspace(0.0005, 1.0, len(vc_loss)), 1 / 8)
-    colorline(vc_loss, vsr_loss, z=z, cmap=plt.get_cmap('YlOrRd'))
-    plt.xlim([np.min(vc_loss), np.max(vc_loss)])
-    plt.ylim([np.min(vsr_loss), np.max(vsr_loss)])
-    plt.xlabel("vc loss")
-    plt.ylabel("vsr loss")
+def plot_loss(run_strings):
+    scan_data = scan_history_multiple(run_strings, ["train_vc_loss", "train_vsr_loss"])
+    for data in scan_data:
+        fig = plt.figure()
+        vc_loss = moving_average(data["train_vc_loss"], 10)
+        vsr_loss = moving_average(data["train_vsr_loss"], 10)
+        z = np.power(np.linspace(0.0005, 1.0, len(vc_loss)), 1 / 8)
+        colorline(vc_loss, vsr_loss, z=z, cmap=plt.get_cmap('YlOrRd'))
+        plt.xlim([np.min(vc_loss), np.max(vc_loss)])
+        plt.ylim([np.min(vsr_loss), np.max(vsr_loss)])
+        plt.xlabel("Funkcja kosztu zadania kompresji")
+        plt.ylabel("Funkcja kosztu zadania super-rozdzielczości")
     plt.show()
 
 
-def gradient_stats(run_string):
+def scan_history(run_string, keys):
     api = wandb.Api()
     run = api.run(run_string)
+    dataframe = run.scan_history(keys=keys)
+    array = np.array([[row[key] for key in keys] for row in dataframe]).transpose()
+    return {key: arr for key, arr in zip(keys, array)}
+
+
+def scan_history_multiple(run_strings, keys):
+    return [scan_history(run_str, keys) for run_str in run_strings]
+
+
+def set_x_ticks_to_epochs(fig, steps_per_epoch=2328, sparsity=1):
+    epochs = int(fig.axes[0].get_xlim()[-1] / steps_per_epoch)
+    ticks = np.linspace(0, epochs * steps_per_epoch, int(epochs / sparsity) + 1)
+    tick_labels = np.linspace(0, epochs, int(epochs / sparsity) + 1, dtype=int)
+    plt.xticks(ticks, tick_labels)
+    plt.xlabel("Epoki")
+    return fig
+
+
+def get_y_label_dict():
+    return {"grad_vsr_norm": "Norma gradientu zadania super-rozdzielczości",
+            "grad_vc_norm": "Norma gradientu zadania kompresji",
+            "grad_cos_angle": "Kosinus kąta pomiędzy gradientami"}
+
+
+def plot_history(scanned_history, key, mode="per batch", steps_per_epoch=2328, fig=None):
+    supported_modes = ["per batch", "moving avg", "per epoch"]
+    if mode not in supported_modes:
+        raise ValueError(f"Unrecognized mode value. Supported are {supported_modes}")
+    if fig is None:
+        fig = plt.figure()
+    if mode == "per batch":
+        for history in scanned_history:
+            plt.plot(history[key])
+    elif mode == "moving avg":
+        for history in scanned_history:
+            plt.plot(moving_average(history[key], 200))
+    elif mode == "per epoch":
+        for history in scanned_history:
+            steps = len(history[key])
+            epochs = steps // steps_per_epoch
+            per_epoch_x = np.arange(steps_per_epoch, steps, steps_per_epoch)
+            history_reshaped = history[key][:epochs * steps_per_epoch].reshape(-1, steps_per_epoch)
+            plt.plot(per_epoch_x, history_reshaped.mean(axis=1))
+    fig = set_x_ticks_to_epochs(fig, steps_per_epoch, sparsity=2)
+    plt.ylabel(get_y_label_dict()[key])
+
+    return fig
+
+
+def plot_grad_conflict_ratio(scanned_history, steps_per_epoch=2328):
+    fig = plt.figure()
+    for history in scanned_history:
+        steps = len(history["grad_cos_angle"])
+        epochs = steps // steps_per_epoch
+        history_reshaped = history["grad_cos_angle"][:epochs * steps_per_epoch].reshape(-1, steps_per_epoch)
+        grad_conflicts = np.round((history_reshaped < 0).mean(axis=1), decimals=2)
+        plt.plot(grad_conflicts)
+    plt.ylabel("Współczynnik paczek danych ze skonfliktowanymi gradientami [%]")
+    plt.xlabel("Epoki")
+    return fig
+
+
+def plot_grad_stats(run_strings, mode="per batch", legend=None):
     keys = ["grad_vsr_norm", "grad_vc_norm", "grad_cos_angle"]
-    gradients_dataframe = run.scan_history(keys=keys)
-    gradients_array = np.array(
-        [[row["grad_vsr_norm"], row["grad_vc_norm"], row["grad_cos_angle"]] for row in gradients_dataframe]
-    ).transpose()
-    steps = len(gradients_array[0])
-    steps_per_epoch = 2328
-    epochs = steps // steps_per_epoch
-    per_epoch_average_x = np.arange(steps_per_epoch, steps, steps_per_epoch)
-    grads_reshaped = gradients_array[:, :epochs * steps_per_epoch].reshape(3, -1, steps_per_epoch)
-    for i, x in enumerate(gradients_array):
-        plt.figure(i)
-        plt.title(keys[i])
-        plt.plot(x)
-        plt.plot(moving_average(x, 200))
-        plt.plot(per_epoch_average_x, grads_reshaped[i].mean(axis=1), color='r')
+    scan_data = [scan_history(run_str, keys) for run_str in run_strings]
 
-        ticks = np.linspace(0, epochs * steps_per_epoch, epochs + 1)
-        tick_labels = np.linspace(0, epochs, epochs + 1, dtype=int)
-        plt.xticks(ticks, tick_labels)
-
-        plt.legend(["per training batch", "moving average (n=200)", "per epoch average"])
-        plt.xlabel("Epoch")
-        print(f"{keys[i]}: max={x.max()}, min={x.min()}, mean={x.mean()}")
-    grads_conflicts = np.round((grads_reshaped[2] < 0).mean(axis=1), decimals=2)
-    plt.figure(4)
-    plt.plot(grads_conflicts)
-    plt.xlabel("Epoch")
-    plt.xticks(np.linspace(0, len(grads_conflicts), len(grads_conflicts), dtype=int),
-               np.linspace(0, epochs, epochs, dtype=int))
-    plt.ylabel("Ratio of batches with gradient conflicts")
-
-    plt.figure(5)
-    plt.hist(gradients_array[2], bins=50, color='blue', alpha=0.7)
-    plt.title('Distribution of gradient conflicts')
-    plt.xlabel('Value')
-    plt.ylabel('Frequency')
-    plt.grid(True)
+    for key in keys:
+        fig = plot_history(scan_data, key=key, mode=mode)
+        if legend is not None:
+            plt.legend(legend)
+    conflicts = plot_grad_conflict_ratio(scan_data)
+    if legend is not None:
+        plt.legend(legend)
     plt.show()
 
 
 if __name__ == "__main__":
     set_random_seed(777)
-    gradient_stats("camarotheboss/VSRVC/iuljasi2")
-    loss_plot("camarotheboss/VSRVC/iuljasi2")
+    # runs = ["camarotheboss/VSRVC/iuljasi2", "camarotheboss/VSRVC/0c7bvq4m", "camarotheboss/VSRVC/3b732n3p"]  # MV
+    runs = ["camarotheboss/VSRVC/nsljta4h", "camarotheboss/VSRVC/gq3tvmdf", "camarotheboss/VSRVC/oqokt5n7"]  # SHALLOW
+    # plot_grad_stats(runs, mode="per epoch", legend=["EW", "GradNorm", "DB_MTL"])
+    plot_loss(runs)
     # mosaic("vsr", ["../weights/isric 1024"], 4, save_root="../weights", box=(300, 100, 100, 100))
