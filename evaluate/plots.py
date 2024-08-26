@@ -106,7 +106,7 @@ def plot_vc_multiple(eval_files, database_path, linestyles=None, colors=None, le
 
 
 def get_vsr(data):
-    quality = {"vsr_psnr": data["vsr_psnr"].mean(), "vsr_ssim": data["vsr_ssim"].mean()}
+    quality = {"vsr_psnr": np.round(data["vsr_psnr"].mean(), 2), "vsr_ssim": np.round(data["vsr_ssim"].mean(), 2)}
     return quality
 
 
@@ -125,21 +125,24 @@ if __name__ == "__main__":
         "../weights//VSRVC mv 128 EW x4 vimeo/eval 128 12 adapt.json",
         "../weights//VSRVC mv 128 GradNorm x4 vimeo/eval 128 12 adapt.json",
         "../weights//VSRVC mv 128 DB_MTL x4 vimeo/eval 128 12 adapt.json",
-        "../weights//VSRVC shallow 128 EW x4 vimeo/eval 128 12 adapt.json",
-        "../weights//VSRVC shallow 128 GradNorm x4 vimeo/eval 128 12 adapt.json",
-        "../weights//VSRVC shallow 128 DB_MTL x4 vimeo/eval 128 12 adapt.json",
+        # "../weights//VSRVC shallow 128 EW x4 vimeo/eval 128 12 adapt.json",
+        # "../weights//VSRVC shallow 128 GradNorm x4 vimeo/eval 128 12 adapt.json",
+        # "../weights//VSRVC shallow 128 DB_MTL x4 vimeo/eval 128 12 adapt.json",
         "../weights//ISRIC 128 EW x4 vimeo/eval.json",
     ]
     legend = [
         "mv λp=128, λi=128, 12 Equal Weighting",
         "mv λp=128, λi=128, 12 GradNorm",
         "mv λp=128, λi=128, 12 DB_MTL",
-        "shallow λp=128, λi=128, 12 Equal Weighting",
-        "shallow λp=128, λi=128, 12 GradNorm",
-        "shallow λp=128, λi=128, 12 DB_MTL",
+        # "shallow λp=128, λi=128, 12 EW",
+        # "shallow λp=128, λi=128, 12 GradNorm",
+        # "shallow λp=128, λi=128, 12 DB_MTL",
         "ISRIC vimeo λi=128",
         ]
-    plot_vc_multiple(eval_files, database)
+    metric = "SSIM"
+    plot_vc_multiple(eval_files, database, metric=metric.lower())
+    plt.ylabel(metric)
+    plt.xlabel("BPP")
     plt.legend(["AVC", "HEVC"] + legend)
     plt.show()
     for i, data in enumerate(get_multiple_vsr(eval_files, database)):

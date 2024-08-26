@@ -153,11 +153,13 @@ class Trainer(nn.Module):
         params_main = (params_dict[name] for name in sorted(parameters["main"]))
         self.optimizer = optim_dict[optim_param['optim']](params_main, **optim_arg)
         params_aux = (params_dict[name] for name in sorted(parameters["aux"]))
-        self.aux_optimizer = optim_dict[optim_param['optim']](params_aux, **optim_arg)
+        self.aux_optimizer = optim_dict[optim_param['optim']](params_aux, **optim_arg) \
+            if len(list(params_aux)) else None
         if scheduler_param is not None:
             scheduler_arg = {k: v for k, v in scheduler_param.items() if k != 'scheduler'}
             self.scheduler = scheduler_dict[scheduler_param['scheduler']](self.optimizer, **scheduler_arg)
-            self.aux_scheduler = scheduler_dict[scheduler_param['scheduler']](self.aux_optimizer, **scheduler_arg)
+            self.aux_scheduler = scheduler_dict[scheduler_param['scheduler']](self.aux_optimizer, **scheduler_arg) \
+                if len(list(params_aux)) else None
         else:
             self.scheduler = None
             self.aux_scheduler = None
@@ -261,10 +263,11 @@ class Trainer(nn.Module):
                     self.logger.log("vsr", "norm", norm_vsr, mode="grad")
                     self.logger.log("cos", "angle", cos_angle, mode="grad")
                 self.optimizer.step()
-                aux_loss = self._compute_aux_loss()
-                self.aux_optimizer.zero_grad(set_to_none=False)
-                aux_loss.backward()
-                self.aux_optimizer.step()
+                if self.aux_optimizer is not None:
+                    aux_loss = self._compute_aux_loss()
+                    self.aux_optimizer.zero_grad(set_to_none=False)
+                    aux_loss.backward()
+                    self.aux_optimizer.step()
                 self.logger.print(f"{batch_index + 1}/{train_batch}")
                 self.logger.push()
 
@@ -281,10 +284,12 @@ class Trainer(nn.Module):
             if self.scheduler is not None:
                 if self.scheduler_param['scheduler'] == 'reduce' and val_dataloaders is not None:
                     self.scheduler.step(val_improvement)
-                    self.aux_scheduler.step(val_improvement)
+                    if self.aux_scheduler is not None:
+                        self.aux_scheduler.step(val_improvement)
                 else:
                     self.scheduler.step()
-                    self.aux_scheduler.step()
+                    if self.aux_scheduler is not None:
+                        self.aux_scheduler.step()
             # if self.save_path is not None and self.meter.best_result['epoch'] == epoch:
             torch.save(self.model.state_dict(), os.path.join(self.save_path, 'best.pt'))
             print('Save Model {} to {}'.format(epoch, os.path.join(self.save_path, 'best.pt')))

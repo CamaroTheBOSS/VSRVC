@@ -41,6 +41,28 @@ class VSRLoss(AbsLoss):
         return return_value
 
 
+class DummyLoss(AbsLoss):
+    def __init__(self):
+        super(DummyLoss, self).__init__()
+
+    def compute_loss(self, pred, gt):
+        return torch.tensor(0)
+
+
+class DummyMetrics(AbsMetric):
+    def __init__(self):
+        super(DummyMetrics, self).__init__()
+
+    def update_fun(self, pred, gt):
+        self.bs.append(pred.size()[0])
+
+    def score_fun(self):
+        return []
+
+    def reinit(self):
+        self.bs = []
+
+
 class QualityMetrics(AbsMetric):
     def __init__(self):
         super(QualityMetrics, self).__init__()

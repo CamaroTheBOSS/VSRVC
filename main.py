@@ -6,7 +6,7 @@ from torch.utils.data import DataLoader
 from LibMTL.utils import set_device, set_random_seed
 from config import MyLibMTL_args, prepare_args
 from trainer import Trainer
-from metrics import CompressionTaskMetrics, RateDistortionLoss, QualityMetrics, VSRLoss
+from metrics import CompressionTaskMetrics, RateDistortionLoss, QualityMetrics, VSRLoss, DummyMetrics, DummyLoss
 import wandb
 from training_configs import vsrvc, vsrvc_motion_residual, vsrvc_shallow_encoder
 
@@ -101,14 +101,14 @@ def main(params):
                            'loss_fn': RateDistortionLoss(params.lmbda),
                            'weight': [1, 1, 0]}
     else:
-        task_dict["vc"] = {'metrics': [], 'metrics_fn': None, 'loss_fn': None, 'weight': []}
+        task_dict["vc"] = {'metrics': [], 'metrics_fn': DummyMetrics(), 'loss_fn': DummyLoss(), 'weight': []}
     if params.vsr:
         task_dict["vsr"] = {'metrics': ['psnr', 'ssim'],
                             'metrics_fn': QualityMetrics(),
                             'loss_fn': VSRLoss(params.lmbda),
                             'weight': [1, 1]}
     else:
-        task_dict["vsr"] = {'metrics': [], 'metrics_fn': None, 'loss_fn': None, 'weight': []}
+        task_dict["vsr"] = {'metrics': [], 'metrics_fn': DummyMetrics(), 'loss_fn': DummyLoss(), 'weight': []}
     if params.enable_wandb:
         wandb.init(project="VSRVC", name=run_name)
     my_trainer = Trainer(task_dict=task_dict,
