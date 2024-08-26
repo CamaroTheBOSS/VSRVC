@@ -102,6 +102,8 @@ def plot_vc_multiple(eval_files, database_path, linestyles=None, colors=None, le
     if legend is not None:
         legend = ["AVC", "HEVC"] + legend
         plt.legend(legend)
+    plt.ylabel(metric.upper())
+    plt.xlabel("BPP")
     return fig
 
 
@@ -117,6 +119,35 @@ def get_multiple_vsr(eval_files, db_file):
         eval_data = load_eval_file(eval_file)
         vsr_datas.append(get_vsr(eval_data))
     return vsr_datas
+
+
+def get_mean_vc_xy_2d(data, metric="psnr"):
+    metric = "vc_psnr" if metric == "psnr" else "vc_ssim"
+    x = np.round(np.sum(data["bpp"], axis=-1).mean(), 2)
+    y = np.round(data[metric].mean(), 2)
+    return x, y
+
+
+def get_mean_vc_xy_3d(data, metric="psnr"):
+    metric = "vc_psnr" if metric == "psnr" else "vc_ssim"
+    x = np.flip(data["bpp"].mean(axis=(1, 2)))
+    y = np.flip(data[metric].mean(axis=(1, 2)))
+    return x, y
+
+
+def get_multiple_vc(eval_files, db_file, metric="psnr"):
+    hevc_data = load_alg_database(db_file, "hevc")
+    avc_data = load_alg_database(db_file, "avc")
+    hx, hy = get_mean_vc_xy_3d(hevc_data, metric)
+    ax, ay = get_mean_vc_xy_3d(avc_data, metric)
+    vc_datas = []
+    for eval_file in eval_files:
+        eval_data = load_eval_file(eval_file)
+        ex, ey = get_mean_vc_xy_2d(eval_data, metric)
+        hy_interpolated = np.round(np.interp(np.array([ex]), hx, hy), 2).item()
+        ay_interpolated = np.round(np.interp(np.array([ex]), ax, ay), 2).item()
+        vc_datas.append({"bpp": ex, "model": ey, "hevc": hy_interpolated, "avc": ay_interpolated})
+    return vc_datas
 
 
 if __name__ == "__main__":
@@ -139,12 +170,11 @@ if __name__ == "__main__":
         # "shallow λp=128, λi=128, 12 DB_MTL",
         "ISRIC vimeo λi=128",
         ]
-    metric = "SSIM"
-    plot_vc_multiple(eval_files, database, metric=metric.lower())
-    plt.ylabel(metric)
-    plt.xlabel("BPP")
-    plt.legend(["AVC", "HEVC"] + legend)
+    metric = "ssim"
+    plot_vc_multiple(eval_files, database, metric=metric, legend=legend)
     plt.show()
+    for i, data in enumerate(get_multiple_vc(eval_files, database, metric)):
+        print(f"{legend[i] + ':':<38} {data}")
     for i, data in enumerate(get_multiple_vsr(eval_files, database)):
         if i == 0:
             print(f"{'bilinear:':<39}{data}")

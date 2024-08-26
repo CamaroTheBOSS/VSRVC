@@ -1,3 +1,4 @@
+import itertools
 import json
 import shutil
 from typing import cast
@@ -152,14 +153,14 @@ class Trainer(nn.Module):
         optim_arg = {k: v for k, v in optim_param.items() if k != 'optim'}
         params_main = (params_dict[name] for name in sorted(parameters["main"]))
         self.optimizer = optim_dict[optim_param['optim']](params_main, **optim_arg)
-        params_aux = (params_dict[name] for name in sorted(parameters["aux"]))
-        self.aux_optimizer = optim_dict[optim_param['optim']](params_aux, **optim_arg) \
-            if len(list(params_aux)) else None
+        tmp, params_aux = itertools.tee((params_dict[name] for name in sorted(parameters["aux"])), 2)
+        self.aux_optimizer = optim_dict[optim_param['optim']](params_aux, **optim_arg) if len(list(tmp)) else None
+
         if scheduler_param is not None:
             scheduler_arg = {k: v for k, v in scheduler_param.items() if k != 'scheduler'}
             self.scheduler = scheduler_dict[scheduler_param['scheduler']](self.optimizer, **scheduler_arg)
-            self.aux_scheduler = scheduler_dict[scheduler_param['scheduler']](self.aux_optimizer, **scheduler_arg) \
-                if len(list(params_aux)) else None
+            self.aux_scheduler = scheduler_dict[scheduler_param['scheduler']](self.aux_optimizer, **scheduler_arg) if self.aux_optimizer else None
+
         else:
             self.scheduler = None
             self.aux_scheduler = None
