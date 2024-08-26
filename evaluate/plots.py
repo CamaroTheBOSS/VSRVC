@@ -153,24 +153,24 @@ def get_multiple_vc(eval_files, db_file, metric="psnr"):
 if __name__ == "__main__":
     database = "./db_veryslow_uvg.json"
     eval_files = [
-        "../weights//VSRVC mv 128 EW x4 vimeo/eval 128 12 adapt.json",
-        "../weights//VSRVC mv 128 GradNorm x4 vimeo/eval 128 12 adapt.json",
-        "../weights//VSRVC mv 128 DB_MTL x4 vimeo/eval 128 12 adapt.json",
-        # "../weights//VSRVC shallow 128 EW x4 vimeo/eval 128 12 adapt.json",
-        # "../weights//VSRVC shallow 128 GradNorm x4 vimeo/eval 128 12 adapt.json",
-        # "../weights//VSRVC shallow 128 DB_MTL x4 vimeo/eval 128 12 adapt.json",
+        # "../weights//VSRVC mv 128 EW x4 vimeo/eval 128 12 adapt.json",
+        # "../weights//VSRVC mv 128 GradNorm x4 vimeo/eval 128 12 adapt.json",
+        # "../weights//VSRVC mv 128 DB_MTL x4 vimeo/eval 128 12 adapt.json",
+        "../weights//VSRVC shallow 128 EW x4 vimeo/eval 128 12 adapt.json",
+        "../weights//VSRVC shallow 128 GradNorm x4 vimeo/eval 128 12 adapt.json",
+        "../weights//VSRVC shallow 128 DB_MTL x4 vimeo/eval 128 12 adapt.json",
         "../weights//ISRIC 128 EW x4 vimeo/eval.json",
     ]
     legend = [
-        "mv λp=128, λi=128, 12 Equal Weighting",
-        "mv λp=128, λi=128, 12 GradNorm",
-        "mv λp=128, λi=128, 12 DB_MTL",
-        # "shallow λp=128, λi=128, 12 EW",
-        # "shallow λp=128, λi=128, 12 GradNorm",
-        # "shallow λp=128, λi=128, 12 DB_MTL",
+        # "mv λp=128, λi=128, 12 Equal Weighting",
+        # "mv λp=128, λi=128, 12 GradNorm",
+        # "mv λp=128, λi=128, 12 DB_MTL",
+        "shallow λp=128, λi=128, 12 EW",
+        "shallow λp=128, λi=128, 12 GradNorm",
+        "shallow λp=128, λi=128, 12 DB_MTL",
         "ISRIC vimeo λi=128",
         ]
-    metric = "ssim"
+    metric = "psnr"
     plot_vc_multiple(eval_files, database, metric=metric, legend=legend)
     plt.show()
     for i, data in enumerate(get_multiple_vc(eval_files, database, metric)):

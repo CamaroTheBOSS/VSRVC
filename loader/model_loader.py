@@ -1,6 +1,7 @@
 import json
 import math
 import os
+import time
 
 import torch
 from torch import nn
@@ -242,6 +243,7 @@ def load_model(json_file, cfg=None):
                         out[task].append(value)
                     continue
                 inp = video[:, i - 1:i + 1]
+                start = time.time()
                 s_rep = self.encoder.compress(prev_recon, inp)
                 same_rep = True if not isinstance(s_rep, list) and not self.multi_input else False
                 for tn, task in enumerate(self.task_name):
@@ -254,6 +256,8 @@ def load_model(json_file, cfg=None):
                         out[task].append(results)
                     else:
                         out[task].append(self.decoders[task](ss_rep))
+                end = time.time()
+                print(f"Inference time: {end - start}")
             return out
 
         def decompress(self, inputs):
