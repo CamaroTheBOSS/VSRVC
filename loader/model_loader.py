@@ -5,6 +5,7 @@ import time
 
 import torch
 from torch import nn
+from torch.nn.utils import prune
 from torchvision.transforms import ToTensor
 
 import loader as modules
@@ -63,6 +64,24 @@ class KeyFrameModel(nn.Module):
         path = inputs[2]
         recon = ToTensor()(Image.open(path).convert("RGB")).to(self.device)
         return recon.unsqueeze(0)
+
+
+def prune_model(model, cfg):
+    if "pruning" not in cfg:
+        return model
+    if "pruning_ratio" not in cfg:
+        raise ValueError("Pruning method specified, but pruning_ratio not!")
+
+    supported_prunings = ["l1_unstructured"]
+    if cfg["pruning"] == "l1_unstructured":
+        method = prune.l1_unstructured
+    else:
+        raise ValueError(f"Pruning method not supported. Supported are {supported_prunings}")
+
+    for name, module in model.named_modules():
+        if isinstance(module, nn.Conv2d):
+            method(module, name='weight', amount=cfg["pruning_ratio"])
+    return model
 
 
 def load_model(json_file, cfg=None):
@@ -130,7 +149,7 @@ def load_model(json_file, cfg=None):
             return out
 
         def decompress_one(self, inputs):
-            return self.decoders["vc"].decompress(*inputs)
+            return self.decoders["vc"].decompress(inputs)
 
         def compress(self, video):
             out = {task: [] for task in self.task_name}
@@ -182,7 +201,7 @@ def load_model(json_file, cfg=None):
                     if task == "vc":
                         results = self.decoders[task].compress(ss_rep)
                         inp = (ss_rep[0],) + results[0]
-                        prev_recon = self.decoders[task].decompress(*inp)
+                        prev_recon = self.decoders[task].decompress(inp)
                         out[task].append(results)
                     else:
                         out[task].append(self.decoders[task](ss_rep))
@@ -196,7 +215,7 @@ def load_model(json_file, cfg=None):
                     recon = self.iframe_model.decompress_one(inp[0])
                 else:
                     inp = (prev_feat,) + inp[0]
-                    recon = self.decoders["vc"].decompress(*inp)
+                    recon = self.decoders["vc"].decompress(inp)
                 prev_feat = self.encoder.extract_feats(recon)
                 reconstructed_video.append(recon)
             return torch.stack(reconstructed_video, dim=1)
@@ -208,10 +227,10 @@ def load_model(json_file, cfg=None):
                 if i % self.keyframe_interval == 0:
                     recon = self.iframe_model.decompress_one(inp[0])
                 else:
-                    recon_offsets = self.encoder.decompress(*inp[1])
+                    recon_offsets = self.encoder.decompress(inp[1])
                     align_feat = self.encoder.align_features(prev_feat, recon_offsets)
                     inp = (align_feat,) + inp[0]
-                    recon = self.decoders["vc"].decompress(*inp)
+                    recon = self.decoders["vc"].decompress(inp)
                 prev_feat = self.encoder.extract_feats(recon)
                 reconstructed_video.append(recon)
             return torch.stack(reconstructed_video, dim=1)
@@ -252,7 +271,7 @@ def load_model(json_file, cfg=None):
                     if task == "vc":
                         results = self.decoders[task].compress(ss_rep)
                         inp = (ss_rep[0],) + results[0] + results[1]
-                        prev_recon = self.decoders[task].decompress(*inp)
+                        prev_recon = self.decoders[task].decompress(inp)
                         out[task].append(results)
                     else:
                         out[task].append(self.decoders[task](ss_rep))
@@ -268,7 +287,7 @@ def load_model(json_file, cfg=None):
                     recon = self.iframe_model.decompress_one(inp[0])
                 else:
                     inp = (prev_feat,) + inp[0] + inp[1]
-                    recon = self.decoders["vc"].decompress(*inp)
+                    recon = self.decoders["vc"].decompress(inp)
                 prev_feat = self.encoder.extract_feats(recon)
                 reconstructed_video.append(recon)
             return torch.stack(reconstructed_video, dim=1)
@@ -295,6 +314,7 @@ def load_model(json_file, cfg=None):
 
     strict = False if model_type.startswith("PFrame") else True
     model.load_state_dict(torch.load(model_data["checkpoint"]), strict=strict)
+    model = prune_model(model, cfg)
     model.eval()
     model.update(force=True)
     print(f"Model loaded with cfg: {cfg}")

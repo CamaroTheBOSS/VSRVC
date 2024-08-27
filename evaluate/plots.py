@@ -159,6 +159,8 @@ if __name__ == "__main__":
         "../weights//VSRVC shallow 128 EW x4 vimeo/eval 128 12 adapt.json",
         "../weights//VSRVC shallow 128 GradNorm x4 vimeo/eval 128 12 adapt.json",
         "../weights//VSRVC shallow 128 DB_MTL x4 vimeo/eval 128 12 adapt.json",
+        "../weights//VC shallow 128 EW x4 vimeo/eval 128 12.json",
+        # "../weights//VSR shallow 128 EW x4 vimeo/eval 128 12.json",
         "../weights//ISRIC 128 EW x4 vimeo/eval.json",
     ]
     legend = [
@@ -168,6 +170,8 @@ if __name__ == "__main__":
         "shallow λp=128, λi=128, 12 EW",
         "shallow λp=128, λi=128, 12 GradNorm",
         "shallow λp=128, λi=128, 12 DB_MTL",
+        "VC shallow λp=128, λi=128, 12 EW",
+        # "VSR shallow λp=128, λi=128, 12 EW",
         "ISRIC vimeo λi=128",
         ]
     metric = "psnr"

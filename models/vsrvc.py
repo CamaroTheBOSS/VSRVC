@@ -52,7 +52,8 @@ class VCDoubleCompressorDecoder(nn.Module):
         res_p_string, res_hp_string, res_shape = self.residual_compressor.compress(res)
         return [(res_p_string, res_hp_string, res_shape), (mv_p_string, mv_hp_string, mv_shape)]
 
-    def decompress(self, prev_recon_feat, res_p_string, res_hp_string, res_shape, mv_p_string, mv_hp_string, mv_shape):
+    def decompress(self, x):
+        prev_recon_feat, res_p_string, res_hp_string, res_shape, mv_p_string, mv_hp_string, mv_shape = x
         recon_offsets = self.motion_compressor.decompress(mv_p_string, mv_hp_string, mv_shape)
         align_feat = self.motion_compensator(prev_recon_feat, recon_offsets)
         recon_res = self.residual_compressor.decompress(res_p_string, res_hp_string, res_shape)
@@ -115,7 +116,8 @@ class VSRVCMotionResidualEncoder(nn.Module):
     #     align_feat = self.motion_compensator(prev_feat, recon_offsets)
     #     return [(align_feat, curr_feat, mv_p_string, mv_hp_string, shape), (align_feat, x[:, -1])]
 
-    def decompress(self, mv_p_string, mv_hp_string, shape):
+    def decompress(self, x):
+        mv_p_string, mv_hp_string, shape = x
         recon_offsets = self.motion_compressor.decompress(mv_p_string, mv_hp_string, shape)
         return recon_offsets
 
@@ -146,7 +148,8 @@ class VCMotionResidualDecoder(nn.Module):
         res_p_string, res_hp_string, res_shape = self.compressor.compress(res)
         return [(res_p_string, res_hp_string, res_shape), (mv_p_string, mv_hp_string, mv_shape)]
 
-    def decompress(self, align_feat, prior_string, hyperprior_string, shape):
+    def decompress(self, x):
+        align_feat, prior_string, hyperprior_string, shape = x
         recon_res = self.compressor.decompress(prior_string, hyperprior_string, shape)
         recon_feat = recon_res + align_feat
         recon_frame = self.reconstruction_head(recon_feat)
@@ -237,7 +240,8 @@ class ICDecoder(nn.Module):
         prior_string, hyperprior_string, shape = self.compressor.compress(x)
         return [(prior_string, hyperprior_string, shape)]
 
-    def decompress(self, prior_string, hyperprior_string, shape):
+    def decompress(self, x):
+        prior_string, hyperprior_string, shape = x
         reconstructed_features = self.compressor.decompress(prior_string, hyperprior_string, shape)
         reconstructed_frame = self.reconstruction_head(reconstructed_features)
         return reconstructed_frame
@@ -251,14 +255,16 @@ class ICDecoder(nn.Module):
 class DummyVCDecoder(nn.Module):
     def __init__(self):
         super(DummyVCDecoder, self).__init__()
-        self.out_shape = (1, 3, 512, 960)
+        self.out_shape = (1, 3, 256, 448)
         self.device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
     def compress(self, x: torch.Tensor):
+        if len(x) == 2:
+            return [([b''], [b''], 0), ([b''], [b''], 0)]
         align_feat, curr_feat, mv_p_string, mv_hp_string, mv_shape = x
         return [([b''], [b''], 0), (mv_p_string, mv_hp_string, mv_shape)]
 
-    def decompress(self, x, y, z, w):
+    def decompress(self, x):
         return self.forward(x)
 
     def forward(self, x):
@@ -268,7 +274,7 @@ class DummyVCDecoder(nn.Module):
 class DummyVSRDecoder(nn.Module):
     def __init__(self):
         super(DummyVSRDecoder, self).__init__()
-        self.out_shape = (1, 3, 1024, 1920)
+        self.out_shape = (1, 3, 1024, 1792)
         self.device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
     def forward(self, x):
