@@ -49,5 +49,15 @@ pip install wandb kornia==0.6.8 torchmetrics==1.2.1 opencv-python
 Environment was tested on both Linux and Windows with CUDA 12.1 (tested on 22.08.2024)
 ### Training
 ```commandline
-python main.py --enable_wandb --weighting EW --scale 4 --model_type vsrvc_res_mv --save_path "./weights" --lmbda 128 --epochs 30 --mode train --num_workers 1 --optim adamw --vimeo_path ../Datasets/VIMEO90k --seed 777 --scheduler mycos --vsr --vc
+python main.py --model_type vsrvc_shallow --vimeo_path ../Datasets/VIMEO90k --weighting EW --save_path "./weights" --lmbda 128 --epochs 30 --scale 4 --mode train --num_workers 1 --optim adamw --seed 777 --scheduler mycos --vsr --vc
+```
+Dataset should have structure:
+```
+vimeo_root
+    train
+        061
+        ...
+        070
+    sep_testlist.txt
+    sep_trainlist.txt
 ```
