@@ -5,7 +5,8 @@ from typing import Tuple
 import torch
 from PIL import Image
 
-from kornia.augmentation import Resize, ColorJiggle, RandomCrop, RandomVerticalFlip, RandomHorizontalFlip
+from kornia.augmentation import Resize, ColorJiggle, RandomCrop, RandomVerticalFlip, RandomHorizontalFlip, \
+    RandomGaussianNoise
 from torch.utils.data import Dataset
 from torchvision.transforms import Compose, ToTensor
 
@@ -146,6 +147,7 @@ class Augmentation:
                 RandomCrop(size=self.crop_size, same_on_batch=True),
                 RandomVerticalFlip(same_on_batch=True, p=0.5),
                 RandomHorizontalFlip(same_on_batch=True, p=0.5),
+                RandomGaussianNoise(same_on_batch=True, p=1, mean=0, std=0.15),
             ])
             self.resize = Resize((self.crop_size[0] // self.scale, self.crop_size[1] // self.scale))
         else:
@@ -158,6 +160,7 @@ class Augmentation:
                     RandomCrop(size=self.crop_size["vc"], same_on_batch=True),
                     RandomVerticalFlip(same_on_batch=True, p=0.5),
                     RandomHorizontalFlip(same_on_batch=True, p=0.5),
+                    RandomGaussianNoise(same_on_batch=True, p=1, mean=0, std=0.15),
                 ]),
                 "vsr": Compose([
                     ColorJiggle(brightness=(0.85, 1.15), contrast=(0.75, 1.15), saturation=(0.75, 1.25),

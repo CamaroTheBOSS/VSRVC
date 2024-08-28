@@ -81,5 +81,5 @@ if __name__ == "__main__":
         "adaptation": True
     }
     tested_model = "../weights/VSRVC shallow 128 EW x4 vimeo"
-    eval_all(tested_model, eval_cfg)
-    # eval_one(tested_model, 5, eval_cfg, tested_model)
+    # eval_all(tested_model, eval_cfg)
+    eval_one(tested_model, 5, eval_cfg, tested_model)

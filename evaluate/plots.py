@@ -157,6 +157,7 @@ if __name__ == "__main__":
         # "../weights//VSRVC mv 128 GradNorm x4 vimeo/eval 128 12 adapt.json",
         # "../weights//VSRVC mv 128 DB_MTL x4 vimeo/eval 128 12 adapt.json",
         "../weights//VSRVC shallow 128 EW x4 vimeo/eval 128 12 adapt.json",
+        "../weights//VSRVC shallow 128 EW x4 vimeo finetunned/eval 128 12.json",
         "../weights//VSRVC shallow 128 GradNorm x4 vimeo/eval 128 12 adapt.json",
         "../weights//VSRVC shallow 128 DB_MTL x4 vimeo/eval 128 12 adapt.json",
         "../weights//VC shallow 128 EW x4 vimeo/eval 128 12.json",
@@ -168,13 +169,14 @@ if __name__ == "__main__":
         # "mv λp=128, λi=128, 12 GradNorm",
         # "mv λp=128, λi=128, 12 DB_MTL",
         "shallow λp=128, λi=128, 12 EW",
+        "shallow λp=128, λi=128, 12 EW finetunned",
         "shallow λp=128, λi=128, 12 GradNorm",
         "shallow λp=128, λi=128, 12 DB_MTL",
         "VC shallow λp=128, λi=128, 12 EW",
         # "VSR shallow λp=128, λi=128, 12 EW",
         "ISRIC vimeo λi=128",
         ]
-    metric = "psnr"
+    metric = "ssim"
     plot_vc_multiple(eval_files, database, metric=metric, legend=legend)
     plt.show()
     for i, data in enumerate(get_multiple_vc(eval_files, database, metric)):

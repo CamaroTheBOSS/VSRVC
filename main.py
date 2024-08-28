@@ -43,7 +43,7 @@ def get_run_name(params):
 
     multi_input = ' multi_input' if params.multi_input else ''
     dataset = "vimeo" if params.vimeo_path is not None else "reds"
-    return f"{prefix}{model_type}{params.lmbda} {params.weighting} x{params.scale}{multi_input} {dataset}"
+    return f"{prefix}{model_type}{params.lmbda} {params.weighting} x{params.scale}{multi_input} {dataset} finetunned"
 
 
 def main(params):
