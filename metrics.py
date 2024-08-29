@@ -124,21 +124,30 @@ class UVGMetrics:
     def update(self, vsr_sr_video, vc_compress_data, vc_decoded_video, gt):
         vc_gt = gt["vc"]
         vsr_gt = gt["vsr"]
-        _, N, _, H, W = vc_decoded_video.size()
+        _, _, _, H, W = vc_decoded_video.size() if vc_decoded_video is not None else (1, 1, 1, 1, 1)
         bpp_const = 8.0 / (H * W)
-        for i in range(len(vc_compress_data)):
-            vc_pred = vc_decoded_video[:, i]
-            vsr_pred = vsr_sr_video[:, i]
+        length = vsr_sr_video.size()[1] if vsr_sr_video is not None else vc_decoded_video.size()[1]
+        for i in range(length):
+            if vc_decoded_video is not None:
+                vc_pred = vc_decoded_video[:, i]
+                vc_psnr_value = torch.clamp(psnr(vc_pred, vc_gt[:, i]), 0, 255).item()
+                vc_ssim_value = torch.clamp(ssim(vc_pred, vc_gt[:, i]), 0, 1).item()
+                bpp_values = []
+                for j in range(len(vc_compress_data[i])):
+                    compress_data_pred = vc_compress_data[i][j][:-1]
+                    bpp_values += [len(s[0]) * bpp_const for s in compress_data_pred]
+            else:
+                vc_psnr_value = 0.
+                vc_ssim_value = 0.
+                bpp_values = [0., 0., 0., 0.]
 
-            vc_psnr_value = torch.clamp(psnr(vc_pred, vc_gt[:, i]), 0, 255).item()
-            vc_ssim_value = torch.clamp(ssim(vc_pred, vc_gt[:, i]), 0, 1).item()
-            bpp_values = []
-            for j in range(len(vc_compress_data[i])):
-                compress_data_pred = vc_compress_data[i][j][:-1]
-                bpp_values += [len(s[0]) * bpp_const for s in compress_data_pred]
-
-            vsr_psnr_value = torch.clamp(psnr(vsr_pred, vsr_gt[:, i]), 0, 255).item()
-            vsr_ssim_value = torch.clamp(ssim(vsr_pred, vsr_gt[:, i]), 0, 1).item()
+            if vsr_sr_video is not None:
+                vsr_pred = vsr_sr_video[:, i]
+                vsr_psnr_value = torch.clamp(psnr(vsr_pred, vsr_gt[:, i]), 0, 255).item()
+                vsr_ssim_value = torch.clamp(ssim(vsr_pred, vsr_gt[:, i]), 0, 1).item()
+            else:
+                vsr_psnr_value = 0.
+                vsr_ssim_value = 0.
 
             self.vc_psnr_record.append(vc_psnr_value)
             self.vc_ssim_record.append(vc_ssim_value)
