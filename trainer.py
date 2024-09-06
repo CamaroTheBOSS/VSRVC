@@ -20,6 +20,17 @@ from scheduler import MyCosineAnnealingLR
 from utils import confirm_action
 
 
+def process_kwargs(kwargs=None):
+    for key, value in kwargs.items():
+        if isinstance(value, dict):
+            return process_kwargs(value)
+        elif isinstance(value, nn.Module):
+            kwargs[key] = value.to_json()
+        else:
+            kwargs[key] = value
+    return kwargs
+
+
 class Trainer(nn.Module):
     def __init__(self, task_dict, weighting, architecture, encoder_class, decoders, decoder_kwargs, rep_grad,
                  multi_input, optim_param, scheduler_param, logging, print_interval, lmbda, model_type, scale,
@@ -79,6 +90,12 @@ class Trainer(nn.Module):
                               multi_input=self.multi_input,
                               device=self.device,
                               kwargs=self.kwargs['arch_args']).to(self.device)
+        for decoder in self.model.decoders.values():
+            try:
+                decoder.share(self.model.encoder)
+                print("Share function called")
+            except:
+                pass
         if self.load_path is not None:
             if os.path.isdir(self.load_path):
                 self.load_path = os.path.join(self.load_path, 'best.pt')
@@ -109,7 +126,7 @@ class Trainer(nn.Module):
                 ],
                 "weighting": weighting.__name__,
                 "architecture": architecture.__name__,
-                "arch_args": self.kwargs['arch_args'],
+                "arch_args": process_kwargs(self.kwargs['arch_args']),
                 "rep_grad": self.rep_grad,
                 "multi_input": self.multi_input,
                 "checkpoint": os.path.abspath(os.path.join(self.save_path, "best.pt"))

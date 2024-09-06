@@ -8,7 +8,7 @@ from config import MyLibMTL_args, prepare_args
 from trainer import Trainer
 from metrics import CompressionTaskMetrics, RateDistortionLoss, QualityMetrics, VSRLoss, DummyMetrics, DummyLoss
 import wandb
-from training_configs import vsrvc, vsrvc_motion_residual, vsrvc_shallow_encoder
+from training_configs import vsrvc, vsrvc_motion_residual, vsrvc_shallow_encoder, vsrvc_basic
 
 
 def parse_args(parser):
@@ -40,6 +40,8 @@ def get_run_name(params):
         model_type = ' mv '
     elif params.model_type == "vsrvc_shallow":
         model_type = ' shallow '
+    elif params.model_type == "vsrvc_basic":
+        model_type = ' basic '
 
     multi_input = ' multi_input' if params.multi_input else ''
     dataset = "vimeo" if params.vimeo_path is not None else "reds"
@@ -54,6 +56,8 @@ def main(params):
         f = vsrvc_motion_residual
     elif params.model_type == "vsrvc_shallow":
         f = vsrvc_shallow_encoder
+    elif params.model_type == "vsrvc_basic":
+        f = vsrvc_basic
     else:
         raise ValueError("Unrecognized model_type. Supported ones are: vsrvc, vsrvc_res")
     train_set, test_set, encoder_class, decoders, kwargs, decoder_kwargs, model_type = f(params, kwargs)

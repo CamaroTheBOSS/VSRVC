@@ -5,11 +5,12 @@ from matplotlib import pyplot as plt
 
 
 def get_plot_colors():
-    return ["#56B4E9", "#0072B2", "#009E73", "#000000", "#ad3bff", "#4b8a8c", "#9a6429", "#d07dce", "#ff7b5a"]
+    return ["#56B4E9", "#0072B2", "#009E73", "#000000", "#ad3bff", "#4b8a8c", "#9a6429", "#d07dce", "#ff7b5a",
+            "#587246", "#7447ea", "#829811", "#796166", "#db98fd", "#681e06", "#67ab75", "#d07abb", "#887843"]
 
 
 def get_plot_linestyles():
-    return ["-", "--", "-", "--", "-", "--", "-", "--", "-"]
+    return ["-", "--", "-", "--", "-", "--", "-", "--", "-", "--", "-", "--", "-", "--", "-", "--", "-", "--"]
 
 
 def load_eval_file(eval_file):
@@ -154,23 +155,57 @@ if __name__ == "__main__":
     database = "./db_veryslow_uvg.json"
     eval_files = [
         "../weights//VSRVC shallow 128 EW x4 vimeo/eval 128 12 adapt.json",
-        "../weights//VSRVC shallow 128 GradNorm x4 vimeo/eval 128 12 adapt.json",
-        "../weights//VSRVC shallow 128 DB_MTL x4 vimeo/eval 128 12 adapt.json",
-        "../weights//VC shallow 128 EW x4 vimeo/eval 128 12.json",
-        "../weights//ISRIC 128 EW x4 vimeo/eval.json",
-        "../weights//basicvsr_reds.json",
-        "../weights//basicvsr_bi.json",
-        "../weights//basicvsr_bd.json",
+        # "../weights//VSRVC shallow 128 GradNorm x4 vimeo/eval 128 12 adapt.json",
+        # "../weights//VSRVC shallow 128 DB_MTL x4 vimeo/eval 128 12 adapt.json",
+        "../weights//VSRVC mv 128 EW x4 vimeo/eval 128 12 adapt.json",
+        # "../weights//VSRVC shallow 256 EW x4 vimeo/eval 128 12.json",
+        # "../weights//VSRVC shallow 384 EW x4 vimeo/eval 128 12.json",
+        # "../weights//VSRVC shallow 512 EW x4 vimeo/eval 128 12.json",
+        # "../weights//VSRVC shallow 740 EW x4 vimeo/eval 128 12.json",
+        "../weights//VSRVC basic 128 EW x4 vimeo/eval 128 12.json",
+        # "../weights//VC shallow 128 EW x4 vimeo/eval 128 12.json",
+        # "../weights//ISRIC 128 EW x4 vimeo/eval.json",
+        # "../weights//fvc-256.json",
+        # "../weights//fvc-512.json",
+        # "../weights//fvc-1024.json",
+        # "../weights//fvc-2048.json",
+        # "../weights//fvc-4096.json",
+        # "../weights//fvc-8192.json",
+        # "../weights//basicvsr_reds.json",
+        # "../weights//basicvsr_bi.json",
+        # "../weights//iart_bd.json",
+        # "../weights//basicvsr_bd.json",
+        # "../weights//DCVC-FM-000.json",
+        # "../weights//DCVC-FM-001.json",
+        # "../weights//DCVC-FM-002.json",
+        # "../weights//DCVC-FM-003.json",
     ]
     legend = [
         "shallow λp=128, λi=128, 12 EW",
-        "shallow λp=128, λi=128, 12 GradNorm",
-        "shallow λp=128, λi=128, 12 DB_MTL",
-        "VC shallow λp=128, λi=128, 12 EW",
-        "ISRIC vimeo λi=128",
-        "BasicVSR++ reds",
-        "BasicVSR++ vimeo bi",
-        "BasicVSR++ vimeo bd",
+        # "shallow λp=128, λi=128, 12 GradNorm",
+        # "shallow λp=128, λi=128, 12 DB_MTL",
+        "mv λp=128, λi=128, 12 EW",
+        # "shallow λp=256, λi=128, 12 EW",
+        # "shallow λp=384, λi=128, 12 EW",
+        # "shallow λp=512, λi=128, 12 EW",
+        # "shallow λp=740, λi=128, 12 EW",
+        "basic λp=128, λi=128, 12 EW",
+        # "VC shallow λp=128, λi=128, 12 EW",
+        # "ISRIC vimeo λi=128",
+        # "FVC 256",
+        # "FVC 512",
+        # "FVC 1024",
+        # "FVC 2048",
+        # "FVC 4096",
+        # "FVC 8192",
+        # "BasicVSR++ reds",
+        # "BasicVSR++ vimeo bi",
+        # "BasicVSR++ vimeo bd",
+        # "IART vimeo bi",
+        # "DCVC-FM-000",
+        # "DCVC-FM-001",
+        # "DCVC-FM-002",
+        # "DCVC-FM-003",
         ]
     metric = "psnr"
     plot_vc_multiple(eval_files, database, metric=metric, legend=legend)

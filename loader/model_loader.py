@@ -21,6 +21,16 @@ SCALES_MAX = 256
 SCALES_LEVELS = 64
 
 
+def process_arch_args(arch_args):
+    for key, arg in arch_args["encoder_kwargs"].items():
+        if isinstance(arg, dict):
+            module = modules.__dict__[arg["class"]]
+            kwargs = arg["kwargs"]
+            arch_args["encoder_kwargs"][key] = module(**kwargs)
+
+    return arch_args
+
+
 def get_scale_table(min=SCALES_MIN, max=SCALES_MAX, levels=SCALES_LEVELS):
     """Returns table of logarithmically scales."""
     return torch.exp(torch.linspace(math.log(min), math.log(max), levels))
@@ -97,8 +107,6 @@ def load_model(json_file, cfg=None):
             raise KeyError("iframe_model_path key doesn't exist. Please provide path (str) to it in config")
         if "keyframe_interval" not in cfg.keys():
             raise KeyError("keyframe_interval key doesn't exist. Please provide value (int) in config")
-        if "adaptation" not in cfg.keys():
-            raise KeyError("adaptation key doesn't exist. Please provide value (bool) in config")
     encoder_class = modules.__dict__[model_data["encoder_class"]]
     decoders = nn.ModuleDict({d["task"]: modules.__dict__[d["module"]](**d["kwargs"]) for d in model_data["decoders"]})
     weighting = weighting_method.__dict__[model_data["weighting"]]
@@ -177,7 +185,6 @@ def load_model(json_file, cfg=None):
             else:
                 self.iframe_model: IFrameModel = load_model(cfg["iframe_model_path"])
             self.keyframe_interval = cfg["keyframe_interval"]
-            self.adaptation = cfg["adaptation"]
 
         def compress(self, video):
             out = {task: [] for task in self.task_name}
@@ -246,7 +253,6 @@ def load_model(json_file, cfg=None):
             else:
                 self.iframe_model: IFrameModel = load_model(cfg["iframe_model_path"])
             self.keyframe_interval = cfg["keyframe_interval"]
-            self.adaptation = cfg["adaptation"]
 
         def compress(self, video):
             out = {task: [] for task in self.task_name}
@@ -293,6 +299,7 @@ def load_model(json_file, cfg=None):
             return torch.stack(reconstructed_video, dim=1)
 
     cfg["scale"] = model_data["scale"]
+    model_data['arch_args'] = process_arch_args(model_data['arch_args'])
     kwargs = dict(task_name=model_data["task_name"],
                   encoder_class=encoder_class,
                   decoders=decoders,
@@ -311,7 +318,11 @@ def load_model(json_file, cfg=None):
         model = PFrameNoMotionEncoder(**kwargs).to(device)
     else:
         raise ValueError(f"Unrecognized model_type. Supported are {supported_model_types}")
-
+    for decoder in model.decoders.values():
+        try:
+            decoder.share(model.encoder)
+        except:
+            pass
     strict = False if model_type.startswith("PFrame") else True
     model.load_state_dict(torch.load(model_data["checkpoint"]), strict=strict)
     model = prune_model(model, cfg)

@@ -22,6 +22,8 @@ class MotionEstimator(nn.Module):
 class MotionCompensator(nn.Module):
     def __init__(self, channels: int, dcn_groups: int = 8):
         super(MotionCompensator, self).__init__()
+        self.channels = channels
+        self.dcn_groups = dcn_groups
         self.deformable_convolution = DeformConv2d(channels, channels, 3, stride=1, padding=1, dilation=1,
                                                    groups=dcn_groups)
         self.refine_conv1 = nn.Conv2d(channels * 2, channels, 3, 1, 1)
@@ -35,3 +37,12 @@ class MotionCompensator(nn.Module):
         refined_features = self.lrelu(self.refine_conv1(refined_features))
         refined_features = self.lrelu(self.refine_conv2(refined_features))
         return aligned_features + refined_features
+
+    def to_json(self):
+        return {
+            "class": self.__name__,
+            "kwargs": {
+                "channels": self.channels,
+                "dcn_groups": self.dcn_groups,
+            }
+        }
