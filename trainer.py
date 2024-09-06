@@ -23,11 +23,9 @@ from utils import confirm_action
 def process_kwargs(kwargs=None):
     for key, value in kwargs.items():
         if isinstance(value, dict):
-            return process_kwargs(value)
+            kwargs[key] = process_kwargs(value)
         elif isinstance(value, nn.Module):
             kwargs[key] = value.to_json()
-        else:
-            kwargs[key] = value
     return kwargs
 
 

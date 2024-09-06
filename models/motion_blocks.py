@@ -40,7 +40,7 @@ class MotionCompensator(nn.Module):
 
     def to_json(self):
         return {
-            "class": self.__name__,
+            "class": self.__class__.__name__,
             "kwargs": {
                 "channels": self.channels,
                 "dcn_groups": self.dcn_groups,
