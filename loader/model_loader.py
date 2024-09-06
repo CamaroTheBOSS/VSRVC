@@ -12,8 +12,8 @@ import loader as modules
 from compressai.entropy_models import EntropyBottleneck, GaussianConditional
 from PIL import Image
 
-import LibMTL.weighting as weighting_method
-import LibMTL.architecture as architecture_method
+import weighting as weighting_method
+import archs as architecture_method
 from utils import save_frame, interpolate_frame
 
 SCALES_MIN = 0.11

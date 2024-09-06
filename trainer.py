@@ -12,7 +12,7 @@ from torch import Tensor
 from LibMTL._record import _PerformanceMeter
 from LibMTL.utils import count_parameters
 import weighting as weighting_method
-import LibMTL.architecture as architecture_method
+import archs as architecture_method
 from datasets import Augmentation
 
 from logger import Logger, WandbLogger
