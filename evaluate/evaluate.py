@@ -79,6 +79,6 @@ if __name__ == "__main__":
         "iframe_model_path": "../weights/ISRIC 128 EW x4 vimeo",
         "keyframe_interval": 12,
     }
-    tested_model = "../weights/VSRVC basic 128 EW x4 vimeo"
-    # eval_all(tested_model, eval_cfg)
-    eval_one(tested_model, 5, eval_cfg, tested_model)
+    tested_model = "../weights/VSRVC basic 128 GradVac x4 vimeo"
+    eval_all(tested_model, eval_cfg)
+    # eval_one(tested_model, 5, eval_cfg, tested_model)

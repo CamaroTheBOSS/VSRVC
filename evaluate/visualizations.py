@@ -110,9 +110,9 @@ def make_segments(x, y):
     return segments
 
 
-def plot_loss(run_strings):
+def plot_loss(run_strings, legend):
     scan_data = scan_history_multiple(run_strings, ["train_vc_loss", "train_vsr_loss"])
-    for data in scan_data:
+    for i, data in enumerate(scan_data):
         fig = plt.figure()
         vc_loss = moving_average(data["train_vc_loss"], 10)
         vsr_loss = moving_average(data["train_vsr_loss"], 10)
@@ -122,6 +122,7 @@ def plot_loss(run_strings):
         plt.ylim([np.min(vsr_loss), np.max(vsr_loss)])
         plt.xlabel("Funkcja kosztu zadania kompresji")
         plt.ylabel("Funkcja kosztu zadania super-rozdzielczości")
+        plt.title(legend[i])
     plt.show()
 
 
@@ -183,7 +184,7 @@ def plot_grad_conflict_ratio(scanned_history, steps_per_epoch=2328):
         steps = len(history["grad_cos_angle"])
         epochs = steps // steps_per_epoch
         history_reshaped = history["grad_cos_angle"][:epochs * steps_per_epoch].reshape(-1, steps_per_epoch)
-        grad_conflicts = np.round((history_reshaped < 0).mean(axis=1), decimals=2)
+        grad_conflicts = np.round((history_reshaped < 0).mean(axis=1) * 100, decimals=2)
         plt.plot(grad_conflicts)
     plt.ylabel("Współczynnik paczek danych ze skonfliktowanymi gradientami [%]")
     plt.xlabel("Epoki")
@@ -207,7 +208,10 @@ def plot_grad_stats(run_strings, mode="per batch", legend=None):
 if __name__ == "__main__":
     set_random_seed(777)
     # runs = ["camarotheboss/VSRVC/iuljasi2", "camarotheboss/VSRVC/0c7bvq4m", "camarotheboss/VSRVC/3b732n3p"]  # MV
-    runs = ["camarotheboss/VSRVC/nsljta4h", "camarotheboss/VSRVC/gq3tvmdf", "camarotheboss/VSRVC/oqokt5n7"]  # SHALLOW
-    # plot_grad_stats(runs, mode="per epoch", legend=["EW", "GradNorm", "DB_MTL"])
-    plot_loss(runs)
+    # runs = ["camarotheboss/VSRVC/nsljta4h", "camarotheboss/VSRVC/gq3tvmdf", "camarotheboss/VSRVC/oqokt5n7"]  # SHALLOW
+    # legend = ["EW", "GradNorm", "DB_MTL"]
+    runs = ["camarotheboss/VSRVC/q2ouchdu", "camarotheboss/VSRVC/rpc7l2x2"]
+    legend = ["EW", "GradVac"]
+    # plot_grad_stats(runs, mode="per epoch", legend=legend)
+    plot_loss(runs, legend)
     # mosaic("vsr", ["../weights/isric 1024"], 4, save_root="../weights", box=(300, 100, 100, 100))
