@@ -59,7 +59,7 @@ def main(params):
     elif params.model_type == "vsrvc_basic":
         f = vsrvc_basic
     else:
-        raise ValueError("Unrecognized model_type. Supported ones are: vsrvc, vsrvc_res")
+        raise ValueError("Unrecognized model_type. Supported ones are: vsrvc, vsrvc_res_mv, vsrvc_shallow, vsrvc_basic")
     train_set, test_set, encoder_class, decoders, kwargs, decoder_kwargs, model_type = f(params, kwargs)
     run_name = get_run_name(params)
     params.save_path = os.path.join(params.save_path, run_name)

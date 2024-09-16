@@ -2,6 +2,7 @@ import json
 from typing import List, Union
 
 import numpy as np
+import pandas as pd
 from matplotlib import pyplot as plt
 
 
@@ -19,7 +20,7 @@ def get_plot_colors():
 
 
 def get_plot_linestyles():
-    return ["-", "--", "-", "--", "-", "--", "-", "--", "-", "--", "-", "--", "-", "--", "-", "--", "-", "--"]
+    return ["-", "-", "-", "-", "-", "-", "-", "--", "--", "--", "--", "--", "--", "--", "--", "--", "--", "--"]
 
 
 def _load_eval_file_series(eval_files):
@@ -83,19 +84,27 @@ def _plot_vc_3d(data, metric, fig, mode, linestyle, color):
         fig = plt.figure()
     metric = "vc_psnr" if metric == "psnr" else "vc_ssim"
     x = data["bpp"].mean(axis=(1, 2))
-    y = data[metric].mean(axis=(1, 2) if mode == "normal" else (0, 1))
+    y = None
     if mode == "normal":
+        y = data[metric].mean(axis=(1, 2))
         plt.plot(x, y, linestyle=linestyle, color=color)
     elif mode == "per frame":
+        y = data[metric][10].mean(axis=0)
         plt.plot(y, linestyle=linestyle, color=color)
     return fig, {metric: y, "bpp": x}
+
+
+def get_bpp_2d(eval_data: Union[list, dict]):
+    if isinstance(eval_data, list):
+        return [np.sum(d["bpp"], axis=-1).mean() for d in eval_data]
+    return np.sum(eval_data["bpp"], axis=-1).mean()
 
 
 def _plot_vc_2d(data, metric, fig, mode, linestyle, color):
     if fig is None:
         fig = plt.figure()
     metric = "vc_psnr" if metric == "psnr" else "vc_ssim"
-    x = np.sum(data["bpp"], axis=-1).mean()
+    x = get_bpp_2d(data)
     y = data[metric].mean(axis=None if mode == "normal" else 0)
     if mode == "normal":
         plt.scatter(x, y, linestyle=linestyle, color=color)
@@ -110,7 +119,7 @@ def _plot_vc_2d_series(data, metric, fig, mode, linestyle, color):
     metric = "vc_psnr" if metric == "psnr" else "vc_ssim"
     x, y = [], []
     for d in data:
-        x.append(np.sum(d["bpp"], axis=-1).mean())
+        x.append(get_bpp_2d(d))
         y.append(d[metric].mean(axis=None if mode == "normal" else 0))
     if mode == "normal":
         plt.plot(x, y, linestyle=linestyle, color=color, marker="o")
@@ -138,14 +147,19 @@ def plot_vc_multiple(eval_files, database_path, linestyles=None, colors=None, le
     avc_data = load_alg_database(database_path, "avc")
     fig, _ = plot_vc(avc_data, mode=mode, metric=metric, linestyle="-", color="#E69F00")
     plot_vc(hevc_data, fig=fig, mode=mode, metric=metric, linestyle="-", color="#D55E00")
+    max_bpp = 0
     for i, eval_file in enumerate(eval_files):
         eval_data = load_eval_file(eval_file)
+        bpp_2d = get_bpp_2d(eval_data)
+        max_bpp = max(max_bpp, max(bpp_2d) if isinstance(bpp_2d, list) else bpp_2d)
         plot_vc(eval_data, fig=fig, mode=mode, metric=metric, linestyle=linestyles[i], color=colors[i])
     if legend is not None:
         legend = ["AVC", "HEVC"] + legend
         plt.legend(legend)
-    plt.ylabel(metric.upper())
-    plt.xlabel("BPP")
+    plt.ylabel(metric.upper() + ' [dB]' if metric.upper() == "PSNR" else '')
+    plt.xlabel("BPP" if mode == "normal" else "Indeks klatki")
+    if mode == "normal":
+        plt.xlim([0, 1.1 * max_bpp])
     return fig
 
 
@@ -225,6 +239,85 @@ def get_multiple_vc(eval_files, db_file, metric="psnr"):
     return vc_datas
 
 
+def get_bd_psnr(vc_data):
+    assert isinstance(vc_data, list)
+    int_model = 0
+    int_hevc = 0
+    for i in range(1, len(vc_data)):
+        a = vc_data[i - 1]["model"]
+        b = vc_data[i]["model"]
+        h = vc_data[i]["bpp"] - vc_data[i - 1]["bpp"]
+        int_model += (a + b) * h / 2
+
+        a_hevc = vc_data[i - 1]["hevc"]
+        b_hevc = vc_data[i]["hevc"]
+        int_hevc += (a_hevc + b_hevc) * h / 2
+    int_interval = vc_data[-1]["bpp"] - vc_data[0]["bpp"]
+    bd_psnr = (int_hevc - int_model) / int_interval
+    return round(bd_psnr, 2)
+
+
+def _get_bd_psnr_avc(database):
+    hevc_data = load_alg_database(database, "hevc")
+    avc_data = load_alg_database(database, "avc")
+    hx, hy = get_mean_vc_xy_3d(hevc_data, metric)
+    ax, ay = get_mean_vc_xy_3d(avc_data, metric)
+    hy_interpolated = np.round(np.interp(ax, hx, hy), 2)
+
+    int_avc = 0
+    int_hevc = 0
+    for i in range(1, len(ax)):
+        a = ay[i - 1]
+        b = ay[i]
+        h = ax[i] - ax[i - 1]
+        int_avc += (a + b) * h / 2
+
+        a_hevc = hy_interpolated[i - 1]
+        b_hevc = hy_interpolated[i]
+        int_hevc += (a_hevc + b_hevc) * h / 2
+    int_interval = ax[-1] - ax[0]
+    bd_psnr = (int_hevc - int_avc) / int_interval
+    return round(bd_psnr, 2)
+
+
+def write_vc_latex(vc_datas, legend, database):
+    bd_psnrs = []
+    for vc_data in vc_datas:
+        bd_psnrs.append(get_bd_psnr(vc_data))
+    bd_psnr_avc = _get_bd_psnr_avc(database)
+    df = pd.DataFrame(bd_psnrs).transpose()
+    df.columns = legend
+    df2 = pd.DataFrame({'HEVC': [0.], 'AVC': [bd_psnr_avc]})
+    df = df2.join(df)
+    df.index = ["UVG"]
+    print(df)
+    df.astype(str).to_latex("vc_table.txt", caption="placeholder", label="placeholder")
+
+
+def write_vsr_latex(vsr_datas, legend):
+    legend = ["Interpolacja dwuliniowa"] + legend
+    psnrs, ssims = [], []
+    for data in vsr_datas:
+        if isinstance(data, list):
+            max_psnr = 0
+            relevant_data = None
+            for d in data:
+                if max_psnr < d["vsr_psnr"]:
+                    max_psnr = d["vsr_psnr"]
+                    relevant_data = d
+        else:
+            relevant_data = data
+        psnrs.append(relevant_data["vsr_psnr"])
+        ssims.append(relevant_data["vsr_ssim"])
+    df = pd.DataFrame([psnrs, ssims])
+    df.columns = legend
+    df.index = ["PSNR", "SSIM"]
+    print(df)
+    df.astype(str).to_latex("vsr_table.txt", caption="placeholder", label="placeholder")
+
+
+
+
 if __name__ == "__main__":
     database = "./db_veryslow_uvg.json"
     isric = Series("../weights//ISRIC 128 EW x4 vimeo/eval.json", "ISRIC λi=128")
@@ -233,8 +326,8 @@ if __name__ == "__main__":
         "../weights//VSRVC shallow 256 EW x4 vimeo/eval 128 12.json",
         "../weights//VSRVC shallow 384 EW x4 vimeo/eval 128 12.json",
         "../weights//VSRVC shallow 512 EW x4 vimeo/eval 128 12.json",
-        "../weights//VSRVC shallow 740 EW x4 vimeo/eval 128 12.json",
-    ], "VSRVC shallow λi=128, 12 EW")
+        # "../weights//VSRVC shallow 740 EW x4 vimeo/eval 128 12.json",
+    ], "VSRVC")
     shallow_ew = Series("../weights//VSRVC shallow 128 EW x4 vimeo/eval 128 12 adapt.json",
                         "VSRVC shallow λi=128, 12 EW")
     shallow_gradnorm = Series("../weights//VSRVC shallow 128 GradNorm x4 vimeo/eval 128 12 adapt.json",
@@ -242,7 +335,14 @@ if __name__ == "__main__":
     shallow_dbmtl = Series("../weights//VSRVC shallow 128 DB_MTL x4 vimeo/eval 128 12 adapt.json",
                            "VSRVC shallow λi=128, 12 DB_MTL")
     basic_series = Series("../weights//VSRVC basic 128 EW x4 vimeo/eval 128 12.json", "basic λp=128, λi=128, 12 EW")
-    basic_gradvac = Series("../weights//VSRVC basic 128 GradVac x4 vimeo/eval 128 12.json", "basic λp=128, λi=128, 12 GradVac")
+    basic_gradvac = Series("../weights//VSRVC basic 128 GradVac x4 vimeo/eval 128 12.json",
+                           "basic λp=128, λi=128, 12 GradVac")
+    basic_gradnorm = Series("../weights//VSRVC basic 128 GradNorm x4 vimeo/eval 128 12.json",
+                            "basic λp=128, λi=128, 12 GradNorm")
+    basic_pcgrad = Series("../weights//VSRVC basic 128 PCGrad x4 vimeo/eval 128 12.json",
+                          "basic λp=128, λi=128, 12 PCGrad")
+    basic_dbmtl = Series("../weights//VSRVC basic 128 DB_MTL x4 vimeo/eval 128 12.json",
+                         "basic λp=128, λi=128, 12 DB_MTL")
     fvc_series = Series(["../weights//fvc-256.json",
                          "../weights//fvc-512.json",
                          "../weights//fvc-1024.json",
@@ -250,25 +350,39 @@ if __name__ == "__main__":
                          "../weights//fvc-4096.json",
                          "../weights//fvc-8192.json", ],
                         "FVC", vsr=False)
-    dcvc_fm_series = Series(["../weights//DCVC-FM-000.json",
-                             "../weights//DCVC-FM-001.json",
-                             "../weights//DCVC-FM-002.json",
-                             "../weights//DCVC-FM-003.json", ],
+    # dcvc_fm_series = Series(["../weights//DCVC-FM-000.json",
+    #                          "../weights//DCVC-FM-001.json",
+    #                          "../weights//DCVC-FM-002.json",
+    #                          "../weights//DCVC-FM-003.json", ],
+    #                         "DCVC-FM", vsr=False)
+    dcvc_fm_series = Series(["../weights//DCVC-FM_rate_0.json",
+                             "../weights//DCVC-FM_rate_1.json",
+                             "../weights//DCVC-FM_rate_2.json",
+                             "../weights//DCVC-FM_rate_3.json",
+                             "../weights//DCVC-FM_rate_4.json", ],
                             "DCVC-FM", vsr=False)
     basic_vsr_pp = Series("../weights//basicvsr_plusplus_trained.json", "BasicVSR++", vc=False)
     iart = Series("../weights//iart_bd.json", "IART", vc=False)
-    series = [shallow_series, basic_series, basic_gradvac, fvc_series, dcvc_fm_series, basic_vsr_pp, iart]
+    series = [shallow_series, fvc_series, dcvc_fm_series, basic_vsr_pp, iart]
     eval_files_vc = [s.series for s in series if s.vc]
     legend_vc = [s.legend for s in series if s.vc]
     eval_files_vsr = [s.series for s in series if s.vsr]
     legend_vsr = [s.legend for s in series if s.vsr]
     metric = "psnr"
-    plot_vc_multiple(eval_files_vc, database, metric=metric, legend=legend_vc)
+    plot_vc_multiple(eval_files_vc, database, metric="psnr", legend=legend_vc)
+    plot_vc_multiple(eval_files_vc, database, metric="ssim", legend=legend_vc)
+    plot_vc_multiple([v[-1] for v in eval_files_vc], database, metric="psnr", legend=legend_vc, mode="per frame")
+    plot_vc_multiple([v[-1] for v in eval_files_vc], database, metric="ssim", legend=legend_vc, mode="per frame")
     plt.show()
-    for i, data in enumerate(get_multiple_vc(eval_files_vc, database, metric)):
+    vcs = get_multiple_vc(eval_files_vc, database, metric)
+    write_vc_latex(vcs, legend_vc, database)
+    for i, data in enumerate(vcs):
         print(f"{legend_vc[i] + ':':<38} {data}")
+
     print("===========================================================================")
-    for i, data in enumerate(get_multiple_vsr(eval_files_vsr, database)):
+    vsrs = get_multiple_vsr(eval_files_vsr, database)
+    write_vsr_latex(vsrs, legend_vsr)
+    for i, data in enumerate(vsrs):
         if i == 0:
             print(f"{'bilinear:':<39}{data}")
         else:
