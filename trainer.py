@@ -3,6 +3,7 @@ import json
 import shutil
 from typing import cast
 
+import torch.nn.functional as F
 import torch, os
 import torch.nn as nn
 import numpy as np
@@ -57,10 +58,10 @@ class Trainer(nn.Module):
 
         self.meter = _PerformanceMeter(self.task_dict, self.multi_input)
         self.crop_size = (256, 256)
-        self.augmentation = Augmentation(multi_input, scale, dataset_type)
+        # self.augmentation = Augmentation(multi_input, scale, dataset_type)
 
-    def augment_data(self, data, task=None):
-        return self.augmentation(data, task, training_mode=self.training)
+    # def augment_data(self, data, task=None):
+    #     return self.augmentation(data, task, training_mode=self.training)
 
     def _prepare_model(self, weighting, architecture, encoder_class, decoders):
 
@@ -194,7 +195,10 @@ class Trainer(nn.Module):
             label = label.to(self.device, non_blocking=True)
         return data, label
 
-    def process_preds(self, preds, task_name=None):
+    def process_preds(self, preds):
+        img_size = (288, 384)
+        for task in self.task_name:
+            preds[task] = F.interpolate(preds[task], img_size, mode='bilinear', align_corners=True)
         return preds
 
     def _compute_loss(self, preds, gts, task_name=None):
@@ -253,8 +257,9 @@ class Trainer(nn.Module):
             for batch_index in range(train_batch):
                 if not self.multi_input:
                     train_inputs, train_gts = self._process_data(train_loader)
-                    train_inputs, train_gts = self.augment_data(train_inputs)
+                    # train_inputs, train_gts = self.augment_data(train_inputs)
                     train_preds = self.model(train_inputs)
+                    train_preds = self.process_preds(train_preds)
                     train_losses = self._compute_loss(train_preds, train_gts)
                     self.meter.update(train_preds, train_gts)
                 else:
@@ -271,19 +276,19 @@ class Trainer(nn.Module):
                 w, grads = self.model.backward(train_losses, **self.kwargs['weight_args'])
                 if w is not None:
                     self.batch_weight[:, epoch, batch_index] = w
-                if self.log_grads:
-                    norm_vc = torch.norm(grads[0])
-                    norm_vsr = torch.norm(grads[1])
-                    cos_angle = torch.dot(grads[0], grads[1]) / (norm_vc * norm_vsr)
-                    self.logger.log("vc", "norm", norm_vc, mode="grad")
-                    self.logger.log("vsr", "norm", norm_vsr, mode="grad")
-                    self.logger.log("cos", "angle", cos_angle, mode="grad")
+                # if self.log_grads:
+                #     norm_vc = torch.norm(grads[0])
+                #     norm_vsr = torch.norm(grads[1])
+                #     cos_angle = torch.dot(grads[0], grads[1]) / (norm_vc * norm_vsr)
+                #     self.logger.log("vc", "norm", norm_vc, mode="grad")
+                #     self.logger.log("vsr", "norm", norm_vsr, mode="grad")
+                #     self.logger.log("cos", "angle", cos_angle, mode="grad")
                 self.optimizer.step()
-                if self.aux_optimizer is not None:
-                    aux_loss = self._compute_aux_loss()
-                    self.aux_optimizer.zero_grad(set_to_none=False)
-                    aux_loss.backward()
-                    self.aux_optimizer.step()
+                # if self.aux_optimizer is not None:
+                #     aux_loss = self._compute_aux_loss()
+                #     self.aux_optimizer.zero_grad(set_to_none=False)
+                #     aux_loss.backward()
+                #     self.aux_optimizer.step()
                 self.logger.print(f"{batch_index + 1}/{train_batch}")
                 self.logger.push()
 
@@ -330,8 +335,9 @@ class Trainer(nn.Module):
             if not self.multi_input:
                 for batch_index in range(test_batch):
                     test_inputs, test_gts = self._process_data(test_loader)
-                    test_inputs, test_gts = self.augment_data(test_inputs)
+                    # test_inputs, test_gts = self.augment_data(test_inputs)
                     test_preds = self.model(test_inputs)
+                    train_preds = self.process_preds(train_preds)
                     self.meter.update(test_preds, test_gts)
                     self.logger.print(f"{batch_index + 1}/{test_batch}")
             else:

@@ -45,11 +45,11 @@ class WandbLogger(Logger):
         wandb.define_metric(name, step_metric=step_metric)
 
     def define_metrics(self):
-        if self.log_grads:
-            self.create_metric(build_metric_name("grad", "vc", "norm"), step_metric=self.train_step_metric)
-            self.create_metric(build_metric_name("grad", "vsr", "norm"), step_metric=self.train_step_metric)
-            self.create_metric(build_metric_name("grad", "cos", "angle"), step_metric=self.train_step_metric)
-        self.create_metric(build_metric_name("train", "aux", "loss"), step_metric=self.train_step_metric)
+        # if self.log_grads:
+        #     self.create_metric(build_metric_name("grad", "vc", "norm"), step_metric=self.train_step_metric)
+        #     self.create_metric(build_metric_name("grad", "vsr", "norm"), step_metric=self.train_step_metric)
+        #     self.create_metric(build_metric_name("grad", "cos", "angle"), step_metric=self.train_step_metric)
+        # self.create_metric(build_metric_name("train", "aux", "loss"), step_metric=self.train_step_metric)
         for task in self.task_dict.keys():
             self.create_metric(build_metric_name("train", task, "loss"), step_metric=self.train_step_metric)
             for metric in self.task_dict[task]['metrics']:
