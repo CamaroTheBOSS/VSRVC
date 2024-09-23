@@ -4,7 +4,7 @@ from typing import Dict
 from torch.utils.data import DataLoader
 
 from LibMTL.utils import set_device, set_random_seed
-from config import MyLibMTL_args, prepare_args
+from config import get_libmtl_parser, prepare_args
 from trainer import Trainer
 from metrics import CompressionTaskMetrics, RateDistortionLoss, QualityMetrics, VSRLoss, DummyMetrics, DummyLoss
 import wandb
@@ -69,32 +69,24 @@ def main(params):
                     training_set,
                     batch_size=params.batch_size,
                     shuffle=True,
-                    num_workers=params.num_workers,
-                    pin_memory=True,
                     drop_last=True,) for key, training_set in train_set.items()}
         test_dataloader = {
             key: DataLoader(
                 testing_set,
                 batch_size=params.batch_size,
                 shuffle=False,
-                num_workers=params.num_workers,
-                pin_memory=True,
                 drop_last=True, ) for key, testing_set in test_set.items()}
     else:
         train_dataloader = DataLoader(
             train_set,
             batch_size=params.batch_size,
             shuffle=True,
-            num_workers=params.num_workers,
-            pin_memory=True,
             drop_last=True,
         )
         test_dataloader = DataLoader(
             test_set,
             batch_size=params.batch_size,
             shuffle=False,
-            num_workers=params.num_workers,
-            pin_memory=True,
             drop_last=True,
         )
     # define tasks
@@ -145,8 +137,16 @@ def main(params):
         wandb.finish()
 
 
+def run():
+    params = parse_args(get_libmtl_parser())
+    set_device(params.gpu_id)
+    set_random_seed(params.seed)
+    main(params)
+
+
+
 if __name__ == "__main__":
-    params = parse_args(MyLibMTL_args)
+    params = parse_args(get_libmtl_parser())
     set_device(params.gpu_id)
     set_random_seed(params.seed)
     main(params)

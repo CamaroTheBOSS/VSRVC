@@ -14,8 +14,8 @@ class Vimeo90k(Dataset):
     def __init__(self, root: str, test_mode: bool = False, sliding_window_size: int = 0, multi_input=False):
         super().__init__()
         self.root = root
-        self.sequences = os.path.join(root, "train")
-        self.txt_file = os.path.join(root, "sep_testlist.txt" if test_mode else "sep_trainlist.txt")
+        self.sequences = os.path.join(root, "gt")
+        self.txt_file = os.path.join(root, "vsrvc_sep_testlist.txt" if test_mode else "vsrvc_sep_trainlist.txt")
 
         self.sliding_window_size = sliding_window_size if 0 < sliding_window_size < 7 else 7
         self.videos = self.load_paths()
@@ -28,14 +28,14 @@ class Vimeo90k(Dataset):
     def load_paths(self):
         videos = []
         with open(self.txt_file, "r") as f:
-            # c = 0
             for suffix in f.readlines():
-                # c += 1
-                # if c >= 50:
-                #     break
                 frame_paths = glob(os.path.join(self.sequences, suffix.strip(), "*.png"))
                 for i in range(7 - self.sliding_window_size + 1):
-                    videos.append([path for path in frame_paths[i:i + self.sliding_window_size]])
+                    video = [path for path in frame_paths[i:i + self.sliding_window_size]]
+                    if len(video) > 0:
+                        videos.append(video)
+                    else:
+                        print(f"Skipping {suffix}. Frames not found")
         return videos
 
     def read_video(self, index):

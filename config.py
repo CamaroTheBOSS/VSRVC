@@ -2,76 +2,76 @@ import argparse
 import numpy as np
 import torch
 
-_parser = argparse.ArgumentParser(description='Configuration for LibMTL')
-# general
-_parser.add_argument('--mode', type=str, default='train', help='train, test')
-_parser.add_argument('--seed', type=int, default=0, help='random seed')
-_parser.add_argument('--gpu_id', default='0', type=str, help='gpu_id')
-_parser.add_argument('--weighting', type=str, default='EW',
-                     help='loss weighing strategies, option: EW, UW, GradNorm, GLS, RLW, \
-        MGDA, PCGrad, GradVac, CAGrad, GradDrop, DWA, IMTL')
-_parser.add_argument('--arch', type=str, default='HPS',
-                     help='architecture for MTL, option: HPS, MTAN')
-_parser.add_argument('--rep_grad', action='store_true', default=False,
-                     help='computing gradient for representation or sharing parameters')
-_parser.add_argument('--multi_input', action='store_true', default=False,
-                     help='whether each task has its own input data')
-_parser.add_argument('--save_path', type=str, default=None,
-                     help='save path')
-_parser.add_argument('--load_path', type=str, default=None,
-                     help='load ckpt path')
-## optim
-_parser.add_argument('--optim', type=str, default='adam',
-                     help='optimizer for training, option: adam, sgd, adagrad, rmsprop')
-_parser.add_argument('--lr', type=float, default=1e-4, help='learning rate for all types of optim')
-_parser.add_argument('--momentum', type=float, default=0.9, help='momentum for sgd')
-_parser.add_argument('--weight_decay', type=float, default=1e-2, help='weight decay for all types of optim')
-## scheduler
-_parser.add_argument('--scheduler', type=str,  # default='step',
-                     help='learning rate scheduler for training, option: step, cos, exp')
-_parser.add_argument('--step_size', type=int, default=100, help='step size for StepLR')
-_parser.add_argument('--gamma', type=float, default=0.5, help='gamma for StepLR')
+def get_libmtl_parser():
+    _parser = argparse.ArgumentParser(description='Configuration for LibMTL')
+    # general
+    _parser.add_argument('--mode', type=str, default='train', help='train, test')
+    _parser.add_argument('--seed', type=int, default=0, help='random seed')
+    _parser.add_argument('--gpu_id', default='0', type=str, help='gpu_id')
+    _parser.add_argument('--weighting', type=str, default='EW',
+                        help='loss weighing strategies, option: EW, UW, GradNorm, GLS, RLW, \
+            MGDA, PCGrad, GradVac, CAGrad, GradDrop, DWA, IMTL')
+    _parser.add_argument('--arch', type=str, default='HPS',
+                        help='architecture for MTL, option: HPS, MTAN')
+    _parser.add_argument('--rep_grad', action='store_true', default=False,
+                        help='computing gradient for representation or sharing parameters')
+    _parser.add_argument('--multi_input', action='store_true', default=False,
+                        help='whether each task has its own input data')
+    _parser.add_argument('--save_path', type=str, default=None,
+                        help='save path')
+    _parser.add_argument('--load_path', type=str, default=None,
+                        help='load ckpt path')
+    ## optim
+    _parser.add_argument('--optim', type=str, default='adam',
+                        help='optimizer for training, option: adam, sgd, adagrad, rmsprop')
+    _parser.add_argument('--lr', type=float, default=1e-4, help='learning rate for all types of optim')
+    _parser.add_argument('--momentum', type=float, default=0.9, help='momentum for sgd')
+    _parser.add_argument('--weight_decay', type=float, default=1e-2, help='weight decay for all types of optim')
+    ## scheduler
+    _parser.add_argument('--scheduler', type=str,  # default='step',
+                        help='learning rate scheduler for training, option: step, cos, exp')
+    _parser.add_argument('--step_size', type=int, default=100, help='step size for StepLR')
+    _parser.add_argument('--gamma', type=float, default=0.5, help='gamma for StepLR')
 
-# args for weighting
-## DWA
-_parser.add_argument('--T', type=float, default=2.0, help='T for DWA')
-## MGDA
-_parser.add_argument('--mgda_gn', default='none', type=str,
-                     help='type of gradient normalization for MGDA, option: l2, none, loss, loss+')
-## GradVac
-_parser.add_argument('--GradVac_beta', type=float, default=0.5, help='beta for GradVac')
-_parser.add_argument('--GradVac_group_type', type=int, default=0,
-                     help='parameter granularity for GradVac (0: whole_model; 1: all_layer; 2: all_matrix)')
-## GradNorm
-_parser.add_argument('--alpha', type=float, default=1.5, help='alpha for GradNorm')
-## GradDrop
-_parser.add_argument('--leak', type=float, default=0.0, help='leak for GradDrop')
-## CAGrad
-_parser.add_argument('--calpha', type=float, default=0.5, help='calpha for CAGrad')
-_parser.add_argument('--rescale', type=int, default=1, help='rescale for CAGrad')
-## Nash_MTL
-_parser.add_argument('--update_weights_every', type=int, default=1, help='update_weights_every for Nash_MTL')
-_parser.add_argument('--optim_niter', type=int, default=20, help='optim_niter for Nash_MTL')
-_parser.add_argument('--max_norm', type=float, default=1.0, help='max_norm for Nash_MTL')
-## MoCo
-_parser.add_argument('--MoCo_beta', type=float, default=0.5, help='MoCo_beta for MoCo')
-_parser.add_argument('--MoCo_beta_sigma', type=float, default=0.5, help='MoCo_beta_sigma for MoCo')
-_parser.add_argument('--MoCo_gamma', type=float, default=0.1, help='gamma for MoCo')
-_parser.add_argument('--MoCo_gamma_sigma', type=float, default=0.5, help='MoCo_gamma_sigma for MoCo')
-_parser.add_argument('--MoCo_rho', type=float, default=0, help='MoCo_rho for MoCo')
-## DB_MTL
-_parser.add_argument('--DB_beta', type=float, default=0.9, help=' ')
-_parser.add_argument('--DB_beta_sigma', type=float, default=0, help=' ')
+    # args for weighting
+    ## DWA
+    _parser.add_argument('--T', type=float, default=2.0, help='T for DWA')
+    ## MGDA
+    _parser.add_argument('--mgda_gn', default='none', type=str,
+                        help='type of gradient normalization for MGDA, option: l2, none, loss, loss+')
+    ## GradVac
+    _parser.add_argument('--GradVac_beta', type=float, default=0.5, help='beta for GradVac')
+    _parser.add_argument('--GradVac_group_type', type=int, default=0,
+                        help='parameter granularity for GradVac (0: whole_model; 1: all_layer; 2: all_matrix)')
+    ## GradNorm
+    _parser.add_argument('--alpha', type=float, default=1.5, help='alpha for GradNorm')
+    ## GradDrop
+    _parser.add_argument('--leak', type=float, default=0.0, help='leak for GradDrop')
+    ## CAGrad
+    _parser.add_argument('--calpha', type=float, default=0.5, help='calpha for CAGrad')
+    _parser.add_argument('--rescale', type=int, default=1, help='rescale for CAGrad')
+    ## Nash_MTL
+    _parser.add_argument('--update_weights_every', type=int, default=1, help='update_weights_every for Nash_MTL')
+    _parser.add_argument('--optim_niter', type=int, default=20, help='optim_niter for Nash_MTL')
+    _parser.add_argument('--max_norm', type=float, default=1.0, help='max_norm for Nash_MTL')
+    ## MoCo
+    _parser.add_argument('--MoCo_beta', type=float, default=0.5, help='MoCo_beta for MoCo')
+    _parser.add_argument('--MoCo_beta_sigma', type=float, default=0.5, help='MoCo_beta_sigma for MoCo')
+    _parser.add_argument('--MoCo_gamma', type=float, default=0.1, help='gamma for MoCo')
+    _parser.add_argument('--MoCo_gamma_sigma', type=float, default=0.5, help='MoCo_gamma_sigma for MoCo')
+    _parser.add_argument('--MoCo_rho', type=float, default=0, help='MoCo_rho for MoCo')
+    ## DB_MTL
+    _parser.add_argument('--DB_beta', type=float, default=0.9, help=' ')
+    _parser.add_argument('--DB_beta_sigma', type=float, default=0, help=' ')
 
-# args for architecture
-## CGC
-_parser.add_argument('--img_size', nargs='+', help='image size for CGC')
-_parser.add_argument('--num_experts', nargs='+', help='the number of experts for sharing and task-specific')
-## DSelect_k
-_parser.add_argument('--num_nonzeros', type=int, default=2, help='num_nonzeros for DSelect-k')
-_parser.add_argument('--kgamma', type=float, default=1.0, help='gamma for DSelect-k')
-
-MyLibMTL_args = _parser
+    # args for architecture
+    ## CGC
+    _parser.add_argument('--img_size', nargs='+', help='image size for CGC')
+    _parser.add_argument('--num_experts', nargs='+', help='the number of experts for sharing and task-specific')
+    ## DSelect_k
+    _parser.add_argument('--num_nonzeros', type=int, default=2, help='num_nonzeros for DSelect-k')
+    _parser.add_argument('--kgamma', type=float, default=1.0, help='gamma for DSelect-k')
+    return _parser
 
 
 def prepare_args(params):
