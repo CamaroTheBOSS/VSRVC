@@ -337,7 +337,7 @@ class Trainer(nn.Module):
                     test_inputs, test_gts = self._process_data(test_loader)
                     # test_inputs, test_gts = self.augment_data(test_inputs)
                     test_preds = self.model(test_inputs)
-                    train_preds = self.process_preds(train_preds)
+                    test_preds = self.process_preds(test_preds)
                     self.meter.update(test_preds, test_gts)
                     self.logger.print(f"{batch_index + 1}/{test_batch}")
             else:
