@@ -282,7 +282,7 @@ def load_model(json_file, cfg=None):
                     else:
                         out[task].append(self.decoders[task](ss_rep))
                 end = time.time()
-                print(f"Inference time: {end - start}")
+                # print(f"Inference time: {end - start}")
             return out
 
         def decompress(self, inputs):
@@ -324,7 +324,15 @@ def load_model(json_file, cfg=None):
         except:
             pass
     strict = False if model_type.startswith("PFrame") else True
-    model.load_state_dict(torch.load(model_data["checkpoint"]), strict=strict)
+
+    state_dict = torch.load(model_data["checkpoint"])
+    for key in list(state_dict.keys()):
+        state_dict[
+            key.replace('entropy_bottleneck._matrix', 'entropy_bottleneck.matrices.')
+            .replace('entropy_bottleneck._bias', 'entropy_bottleneck.biases.')
+            .replace('entropy_bottleneck._factor', 'entropy_bottleneck.factors.')
+        ] = state_dict.pop(key)
+    model.load_state_dict(state_dict, strict=strict)
     model = prune_model(model, cfg)
     model.eval()
     model.update(force=True)

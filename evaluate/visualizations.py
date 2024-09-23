@@ -1,16 +1,20 @@
 import glob
 import os
+
 import wandb
 
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.collections as mcoll
+from torchvision.transforms import Compose, ToTensor
+from PIL import Image
 
 from LibMTL.utils import set_random_seed
 from datasets import UVGDataset
 from evaluate import _eval_example
-from plots import _validate_task
+from metrics import psnr
+from plots import _validate_task, load_eval_file
 from loader.model_loader import load_model
 from utils import to_cv2
 
@@ -31,7 +35,7 @@ def crop_box(img, box):
     return img[y1:y2, x1:x2]
 
 
-def draw_box(img, box, color=(0, 0, 255), thickness=10):
+def draw_box(img, box, color=(0, 0, 255), thickness=3):
     H, W, _ = img.shape
     y1, y2, x1, x2 = validate_box(box, H, W)
     img = cv2.rectangle(img, (x1, y1), (x2, y2), color, thickness)
@@ -44,7 +48,7 @@ def mosaic(task, model_roots, example, gen_mask=None, box=(0, 0, 100, 100), fram
         gen_mask = [0 for _ in model_roots]
     if len(gen_mask) != len(model_roots):
         raise ValueError("Incompatible sizes, gen_mask and model_jsons must have the same size!")
-    dataset = UVGDataset("../../Datasets/UVG", 2)
+    dataset = UVGDataset("../../Datasets/UVG", 4)
     gt = to_cv2(dataset[example][1][task][0, frame_idx])
     H, W, _ = gt.shape
     folder = "compressed" if task == "vc" else "upscaled"
@@ -52,11 +56,14 @@ def mosaic(task, model_roots, example, gen_mask=None, box=(0, 0, 100, 100), fram
         if generate:
             model = load_model(root)
             _eval_example(model, dataset, example, save_root=root)
-        path = glob.glob(os.path.join(root, f"{folder}/*.png"))[frame_idx]
+        paths = glob.glob(os.path.join(root, f"{folder}/*.png"))
+        if len(paths) == 0:
+            paths = glob.glob(os.path.join(root, f"*.png"))
+        path = paths[frame_idx]
         img = crop_box(cv2.imread(path), box)
         cv2.imwrite(os.path.join(save_root, f"{task}_{i}.png"), img)
     original_box = np.copy(crop_box(gt, box))
-    original = draw_box(gt, box)
+    original = draw_box(gt, box, thickness=2 if task == "vc" else 8)
     cv2.imwrite(os.path.join(save_root, f"{task}_original_box.png"), original_box)
     cv2.imwrite(os.path.join(save_root, f"{task}_original.png"), original)
 
@@ -150,7 +157,7 @@ def set_x_ticks_to_epochs(fig, steps_per_epoch=2328, sparsity=1):
 def get_y_label_dict():
     return {"grad_vsr_norm": "Norma gradientu zadania super-rozdzielczości",
             "grad_vc_norm": "Norma gradientu zadania kompresji",
-            "grad_cos_angle": "Kosinus kąta pomiędzy gradientami"}
+            "grad_cos_angle": "Podobieństwo kosinusowe"}
 
 
 def plot_history(scanned_history, key, mode="per batch", steps_per_epoch=2328, fig=None):
@@ -205,13 +212,53 @@ def plot_grad_stats(run_strings, mode="per batch", legend=None):
     plt.show()
 
 
+def get_stats_for_frame(eval_files, vid_idx, frame_idx):
+    for eval_file in eval_files:
+        eval_data = load_eval_file(eval_file)
+        result = {
+            "bpp": eval_data["bpp"][vid_idx][frame_idx].sum(),
+            "vc_psnr": eval_data["vc_psnr"][vid_idx][frame_idx],
+            "vc_ssim": eval_data["vc_ssim"][vid_idx][frame_idx],
+            "vsr_psnr": eval_data["vsr_psnr"][vid_idx][frame_idx],
+            "vsr_ssim": eval_data["vsr_ssim"][vid_idx][frame_idx]
+        }
+        print(f"frame {vid_idx}.{frame_idx}: {result}")
+
+
 if __name__ == "__main__":
-    set_random_seed(777)
-    # runs = ["camarotheboss/VSRVC/iuljasi2", "camarotheboss/VSRVC/0c7bvq4m", "camarotheboss/VSRVC/3b732n3p"]  # MV
-    # runs = ["camarotheboss/VSRVC/nsljta4h", "camarotheboss/VSRVC/gq3tvmdf", "camarotheboss/VSRVC/oqokt5n7"]  # SHALLOW
-    # legend = ["EW", "GradNorm", "DB_MTL"]
-    runs = ["camarotheboss/VSRVC/q2ouchdu", "camarotheboss/VSRVC/rpc7l2x2"]
-    legend = ["EW", "GradVac"]
-    # plot_grad_stats(runs, mode="per epoch", legend=legend)
-    plot_loss(runs, legend)
-    # mosaic("vsr", ["../weights/isric 1024"], 4, save_root="../weights", box=(300, 100, 100, 100))
+    # set_random_seed(777)
+    # shallow_algorithms = [
+    #     "camarotheboss/VSRVC/nsljta4h",  # EW
+    #     "camarotheboss/VSRVC/gq3tvmdf",  # GradNorm
+    #     "camarotheboss/VSRVC/oqokt5n7",  # DB_MTL
+    #     "camarotheboss/VSRVC/cg4vyau5"   # GradVac
+    # ]
+    # legend = ["EW", "GradNorm", "DB_MTL", "GradVac"]
+    # plot_grad_stats(shallow_algorithms, mode="per epoch", legend=legend)
+    # plot_loss(shallow_algorithms, legend)
+    fvc_images = r"D:\Code\ENVS\PyTorchVideoCompression\FVC\woutputs"
+    dcvc_images = r"D:\Code\DCVC\DCVC-FM\out_bin\UVG\rate_4\ShakeNDry"
+    vc_shallow_images = r"..\weights\VC shallow\256"
+    shallow_images = r"..\weights\VSRVC shallow\512"
+    # mosaic("vc", [fvc_images, dcvc_images, vc_shallow_images, shallow_images], 5,
+    #        save_root="../weights", box=(150, 100, 64, 64), frame_idx=10)
+    # get_stats_for_frame([
+    #     "../weights/VSRVC shallow/512/eval 128 12.json",
+    #     "../weights/VC shallow/256/eval 128 12.json",
+    #     "../weights/DCVC-FM_rate_4.json",
+    #     "../weights/fvc-8192.json",
+    # ], 5, 10)
+
+    basicvsr_images = r"D:\Code\ENVS\BasicVSR_PlusPlus\outputs\vimeo90k_bd\YachtRide_0"
+    iart_images = r"D:\Code\ENVS\IART\results\vimeo90k_BDx4_UVG\YachtRide_0"
+    bilinear_images = r"D:\Code\Datasets\UVG_bilinear\YachtRide"
+    vsr_shallow_images = r"..\weights\VSR shallow\128"
+    mosaic("vsr", [bilinear_images, basicvsr_images, iart_images, shallow_images, vsr_shallow_images], 6,
+           save_root="../weights", box=(525, 475, 128, 128), frame_idx=10)
+    get_stats_for_frame([
+        "../weights/VSRVC shallow/512/eval 128 12.json",
+        "../weights/VSR shallow/128/eval 128 12.json",
+        "../weights/basicvsr_plusplus_trained.json",
+        "../weights/iart_bd.json",
+    ], 6, 10)
+

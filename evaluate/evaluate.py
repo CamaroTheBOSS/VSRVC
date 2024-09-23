@@ -1,3 +1,4 @@
+import glob
 import json
 import os
 import torch
@@ -12,7 +13,7 @@ from utils import save_video
 def get_eval_filename(cfg: dict):
     name = "eval"
     if 'iframe_model_path' in cfg.keys():
-        name += ' ' + cfg['iframe_model_path'].split(' ')[1]
+        name += ' ' + cfg['iframe_model_path'].split('/')[-1]
     elif 'keyframe_compress_type' in cfg.keys():
         name += ' ' + cfg['keyframe_compress_type']
     if 'keyframe_interval' in cfg.keys():
@@ -71,14 +72,31 @@ def eval_all(model_root: str, cfg=None):
         json.dump(results, f)
 
 
+def eval_all_models(shared_cfg):
+    groups = glob.glob("../weights/*")
+    for group in groups:
+        if not os.path.isdir(group):
+            continue
+        models = glob.glob(os.path.join(group, "*"))
+        for model in models:
+            files = os.listdir(model)
+            eval_files = list(filter(lambda x: x.startswith("eval"), files))
+            if len(eval_files) == 0:
+                print(f"Evaluating {model}...")
+                eval_all(model, shared_cfg)
+            else:
+                print(f"Skipping {model}. Eval file already exists.")
+
+
 if __name__ == "__main__":
     set_random_seed(777)
     eval_cfg = {
         # "keyframe_compress_type": "jpg",
         # "keyframe_save_root": "../weights/kfs",
-        "iframe_model_path": "../weights/ISRIC 128 EW x4 vimeo",
+        "iframe_model_path": "../weights/ISRIC/128",
         "keyframe_interval": 12,
     }
-    tested_model = "../weights/VSRVC shallow 128 EW x4 vimeo"
-    eval_all(tested_model, eval_cfg)
-    # eval_one(tested_model, 5, eval_cfg, tested_model)
+    # eval_all_models(eval_cfg)
+    tested_model = "../weights/VSRVC shallow/512"
+    # eval_all(tested_model, eval_cfg)
+    eval_one(tested_model, 6, eval_cfg, tested_model)
