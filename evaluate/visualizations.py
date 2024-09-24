@@ -234,13 +234,22 @@ if __name__ == "__main__":
     #     "camarotheboss/VSRVC/cg4vyau5"   # GradVac
     # ]
     # legend = ["EW", "GradNorm", "DB_MTL", "GradVac"]
-    # plot_grad_stats(shallow_algorithms, mode="per epoch", legend=legend)
-    # plot_loss(shallow_algorithms, legend)
-    fvc_images = r"D:\Code\ENVS\PyTorchVideoCompression\FVC\woutputs"
-    dcvc_images = r"D:\Code\DCVC\DCVC-FM\out_bin\UVG\rate_4\ShakeNDry"
-    vc_shallow_images = r"..\weights\VC shallow\256"
-    shallow_images = r"..\weights\VSRVC shallow\512"
-    # mosaic("vc", [fvc_images, dcvc_images, vc_shallow_images, shallow_images], 5,
+    dbmtl_other_tasks = [
+        "camarotheboss/VSRVC/ijngp6ix",
+        "camarotheboss/VSRVC/4bb8u27y",
+        "camarotheboss/VSRVC/7p6saglr",
+        "camarotheboss/VSRVC/6obkwi1n",
+    ]
+    legend = ["SegDepth DBMTL", "classif DBMTL", "classif EW", "SegDepth EW"]
+    tasks = [["segmentation", "depth"], ["Real_World", "Art"], ["Real_World", "Art"], ["segmentation", "depth"]]
+    # plot_grad_stats(dbmtl_other_tasks, mode="per epoch", legend=legend)
+    plot_loss(dbmtl_other_tasks, legend)
+    # fvc_images = r"D:\Code\ENVS\PyTorchVideoCompression\FVC\woutputs"
+    # dcvc_images = r"D:\Code\DCVC\DCVC-FM\out_bin\UVG\rate_4\ShakeNDry"
+    # vc_shallow_images = r"..\weights\VC shallow\256"
+    # shallow_images = r"..\weights\VSRVC shallow\512"
+    # hevc_images = r"..\..\VSRVC\evaluation\new_outputs\ShakeNDry_1920x1080_120fps_420_8bit_YUV"
+    # mosaic("vc", [hevc_images], 5,
     #        save_root="../weights", box=(150, 100, 64, 64), frame_idx=10)
     # get_stats_for_frame([
     #     "../weights/VSRVC shallow/512/eval 128 12.json",
@@ -248,17 +257,17 @@ if __name__ == "__main__":
     #     "../weights/DCVC-FM_rate_4.json",
     #     "../weights/fvc-8192.json",
     # ], 5, 10)
-
-    basicvsr_images = r"D:\Code\ENVS\BasicVSR_PlusPlus\outputs\vimeo90k_bd\YachtRide_0"
-    iart_images = r"D:\Code\ENVS\IART\results\vimeo90k_BDx4_UVG\YachtRide_0"
-    bilinear_images = r"D:\Code\Datasets\UVG_bilinear\YachtRide"
-    vsr_shallow_images = r"..\weights\VSR shallow\128"
-    mosaic("vsr", [bilinear_images, basicvsr_images, iart_images, shallow_images, vsr_shallow_images], 6,
-           save_root="../weights", box=(525, 475, 128, 128), frame_idx=10)
-    get_stats_for_frame([
-        "../weights/VSRVC shallow/512/eval 128 12.json",
-        "../weights/VSR shallow/128/eval 128 12.json",
-        "../weights/basicvsr_plusplus_trained.json",
-        "../weights/iart_bd.json",
-    ], 6, 10)
+    #
+    # basicvsr_images = r"D:\Code\ENVS\BasicVSR_PlusPlus\outputs\vimeo90k_bd\YachtRide_0"
+    # iart_images = r"D:\Code\ENVS\IART\results\vimeo90k_BDx4_UVG\YachtRide_0"
+    # bilinear_images = r"D:\Code\Datasets\UVG_bilinear\YachtRide"
+    # vsr_shallow_images = r"..\weights\VSR shallow\128"
+    # mosaic("vsr", [bilinear_images, basicvsr_images, iart_images, shallow_images, vsr_shallow_images], 6,
+    #        save_root="../weights", box=(525, 475, 128, 128), frame_idx=10)
+    # get_stats_for_frame([
+    #     "../weights/VSRVC shallow/512/eval 128 12.json",
+    #     "../weights/VSR shallow/128/eval 128 12.json",
+    #     "../weights/basicvsr_plusplus_trained.json",
+    #     "../weights/iart_bd.json",
+    # ], 6, 10)
 

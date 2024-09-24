@@ -96,7 +96,7 @@ if __name__ == "__main__":
         "iframe_model_path": "../weights/ISRIC/128",
         "keyframe_interval": 12,
     }
-    # eval_all_models(eval_cfg)
+    eval_all_models(eval_cfg)
     tested_model = "../weights/VSRVC shallow/512"
     # eval_all(tested_model, eval_cfg)
-    eval_one(tested_model, 6, eval_cfg, tested_model)
+    # eval_one(tested_model, 6, eval_cfg, tested_model)
