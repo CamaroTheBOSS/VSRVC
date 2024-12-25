@@ -1,3 +1,5 @@
+import time
+
 import torch
 from torch import nn
 
@@ -104,6 +106,7 @@ class VSRMotionResidualDecoder(nn.Module):
         self.lrelu = nn.LeakyReLU(negative_slope=0.1, inplace=True)
 
     def forward(self, x):
+        start = time.time()
         features, lqs = x
         reconstruction = self.reconstruction_trunk(features)
         reconstruction = self.upsampler(reconstruction)

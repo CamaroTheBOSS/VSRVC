@@ -252,8 +252,8 @@ def get_bd_metrics(tested_data, reference_data):
             x.append(d["bpp"])
             y.append(d["model"])
 
-    bd_rate = np.round(BD_RATE(refx, refy, tx, ty), 2)
-    bd_psnr = np.round(BD_PSNR(refx, refy, tx, ty), 2)
+    bd_rate = np.round(BD_RATE(refx, refy, tx, ty, piecewise=1), 2)
+    bd_psnr = np.round(BD_PSNR(refx, refy, tx, ty, piecewise=1), 2)
     print(f"BD_RATE related to VSRVC: {bd_rate}")
     print(f"BD_PSNR related to VSRVC: {bd_psnr}")
     return bd_rate, bd_psnr
@@ -272,21 +272,21 @@ def get_bd_metrics_trad_algs(reference_data, alg):
         x.append(d["bpp"])
         y.append(d["model"])
 
-    bd_rate = np.round(BD_RATE(x, y, ax, ay), 2)
-    bd_psnr = np.round(BD_PSNR(x, y, ax, ay), 2)
+    bd_rate = np.round(BD_RATE(x, y, ax, ay, piecewise=1), 2)
+    bd_psnr = np.round(BD_PSNR(x, y, ax, ay, piecewise=1), 2)
     print(f"BD_RATE related to VSRVC: {bd_rate}")
     print(f"BD_PSNR related to VSRVC: {bd_psnr}")
     return bd_rate, bd_psnr
 
 
-def write_vc_latex(vc_datas, legend):
+def write_vc_latex(vc_datas, legend, index):
     bd_psnrs, bd_rates = [], []
     for vc_data in vc_datas:
-        bdr, bdp = get_bd_metrics(vc_data, vc_datas[3])
+        bdr, bdp = get_bd_metrics(vc_data, vc_datas[index])
         bd_psnrs.append(bdp)
         bd_rates.append(bdr)
-    bd_rate_avc, bd_psnr_avc = get_bd_metrics_trad_algs(vc_datas[-1], "avc")
-    bd_rate_hevc, bd_psnr_hevc = get_bd_metrics_trad_algs(vc_datas[-1], "hevc")
+    bd_rate_avc, bd_psnr_avc = get_bd_metrics_trad_algs(vc_datas[index], "avc")
+    bd_rate_hevc, bd_psnr_hevc = get_bd_metrics_trad_algs(vc_datas[index], "hevc")
     df = pd.DataFrame([bd_rates, bd_psnrs])
     df.columns = legend
     df2 = pd.DataFrame({'HEVC': [bd_rate_hevc, bd_psnr_hevc], 'AVC': [bd_rate_avc, bd_psnr_avc]})
@@ -344,9 +344,27 @@ if __name__ == "__main__":
     ], "VC", vsr=False)
     shallow_only_vsr = Series("../weights//VSR shallow/128/eval 128 12.json", "VSR", vc=False)
     shallow_ew = Series("../weights//VSRVC shallow/128/eval 128 12 adapt.json", "VSRVC EW")
-    shallow_gradnorm = Series("../weights//VSRVC shallow/GradNorm 128/eval 128 12 adapt.json", "VSRVC GradNorm")
-    shallow_dbmtl = Series("../weights//VSRVC shallow/DB_MTL 128/eval 128 12 adapt.json", "VSRVC DB_MTL")
-    shallow_gradvac = Series("../weights//VSRVC shallow/GradVac 128/eval 128 12.json", "VSRVC GradVac")
+    shallow_gradnorm = Series([
+        "../weights//VSRVC shallow/GradNorm 128/eval 128 12 adapt.json",
+        "../weights//VSRVC shallow/GradNorm 256/eval 128 12.json",
+        "../weights//VSRVC shallow/GradNorm 384/eval 128 12.json",
+        "../weights//VSRVC shallow/GradNorm 512/eval 128 12.json",
+        "../weights//VSRVC shallow/GradNorm 640/eval 128 12.json",
+    ], "VSRVC GradNorm")
+    shallow_dbmtl = Series([
+        "../weights//VSRVC shallow/DB_MTL 128/eval 128 12 adapt.json",
+        "../weights//VSRVC shallow/DB_MTL 256/eval 128 12.json",
+        "../weights//VSRVC shallow/DB_MTL 384/eval 128 12.json",
+        "../weights//VSRVC shallow/DB_MTL 512/eval 128 12.json",
+        "../weights//VSRVC shallow/DB_MTL 640/eval 128 12.json",
+    ], "VSRVC DB_MTL")
+    shallow_gradvac = Series([
+        "../weights//VSRVC shallow/GradVac 128/eval 128 12.json",
+        "../weights//VSRVC shallow/GradVac 256/eval 128 12.json",
+        "../weights//VSRVC shallow/GradVac 384/eval 128 12.json",
+        "../weights//VSRVC shallow/GradVac 512/eval 128 12.json",
+        "../weights//VSRVC shallow/GradVac 640/eval 128 12.json",
+    ], "VSRVC GradVac")
 
     # mv_series = Series([
     #     "../weights//VSRVC mv/128/eval 128 12 adapt.json",
@@ -404,11 +422,11 @@ if __name__ == "__main__":
     basic_vsr_pp = Series("../weights//basicvsr_plusplus_trained.json", "BasicVSR++", vc=False)
     iart = Series("../weights//iart_bd.json", "IART", vc=False)
 
-    # series = [fvc_series, dcvc_fm_series, shallow_series_only_vc, shallow_series]  # VC
+    series = [fvc_series, dcvc_fm_series, shallow_series_only_vc, shallow_series]  # VC
     # series = [basic_vsr_pp, iart, basic_only_vsr, basic_series, shallow_only_vsr, shallow_series]  # VSR
     # series = [fvc_series, dcvc_fm_series, shallow_series, mv_series, basic_series]
-    series = [fvc_series, dcvc_fm_series, shallow_series_only_vc, shallow_series, basic_series_only_vc, basic_series]
-    # series = [shallow_ew, shallow_gradnorm, shallow_dbmtl, shallow_gradvac]
+    # series = [fvc_series, dcvc_fm_series, shallow_series_only_vc, shallow_series, basic_series_only_vc, basic_series]
+    # series = [shallow_gradnorm, shallow_dbmtl, shallow_gradvac, shallow_series_only_vc, shallow_only_vsr, shallow_series]
     # series = [basic_series, basic_gradnorm, basic_dbmtl, basic_gradvac, shallow_ew, shallow_gradnorm, shallow_dbmtl, shallow_gradvac]
     eval_files_vc = [s.series for s in series if s.vc]
     legend_vc = [s.legend for s in series if s.vc]
@@ -419,7 +437,7 @@ if __name__ == "__main__":
     plot_vc_multiple(eval_files_vc, database, metric="ssim", legend=legend_vc)
     plt.show()
     vcs = get_multiple_vc(eval_files_vc, database, metric)
-    write_vc_latex(vcs, legend_vc)
+    write_vc_latex(vcs, legend_vc, -1)
     for i, data in enumerate(vcs):
         print(f"{legend_vc[i] + ':':<38} {data}")
 

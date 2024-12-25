@@ -1,4 +1,5 @@
 import math
+import time
 from dataclasses import dataclass
 
 import torch
@@ -162,11 +163,9 @@ class HyperpriorCompressAI(nn.Module):
     def compress(self, data: torch.Tensor):
         data_prior = self.data_encoder(data)
         data_hyperprior = self.hyperprior_encoder(torch.abs(data_prior))
-
         hyperprior_string = self.entropy_bottleneck.compress(data_hyperprior)
         decompressed_data_hyperprior = self.entropy_bottleneck.decompress(hyperprior_string, data_hyperprior.size()[-2:])
         sigmas = self.hyperprior_decoder(decompressed_data_hyperprior)
-
         indexes = self.gaussian_conditional.build_indexes(sigmas)
         prior_string = self.gaussian_conditional.compress(data_prior, indexes)
 
