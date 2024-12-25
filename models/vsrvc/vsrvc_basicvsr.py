@@ -1,5 +1,3 @@
-import time
-
 import torch
 from torch import nn
 from torchvision.ops import DeformConv2d
@@ -25,7 +23,6 @@ class VSRVCBasicEncoder(nn.Module):
         return self.feat_extractor(x)
 
     def compress(self, prev_recon, x):
-        start = time.time()
         B, N, C, H, W = x.size()
         # assert (N == 2)
         prev_feat = self.extract_feats(x[:, 0])
@@ -33,7 +30,6 @@ class VSRVCBasicEncoder(nn.Module):
         prev_recon_feat = self.extract_feats(prev_recon)
         offsets_forward = self.motion_estimator(prev_feat, curr_feat)
         offsets_backward = self.motion_estimator(curr_feat, prev_feat)
-        print(f"ENCODER COMPRESS TIME: {time.time() - start}")
         return [
             (prev_recon_feat, curr_feat, offsets_forward),
             (prev_feat, curr_feat, offsets_forward, offsets_backward, x[:, -1])

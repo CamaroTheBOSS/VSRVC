@@ -1,5 +1,3 @@
-import time
-
 import torch
 from torch import nn
 
@@ -18,7 +16,6 @@ class VSRVCShallowEncoder(nn.Module):
         ])
 
     def compress(self, prev_recon, x):
-        start = time.time()
         B, N, C, H, W = x.size()
         # assert (N == 2)
         curr_feat = self.extract_feats(x[:, 1])
@@ -29,7 +26,6 @@ class VSRVCShallowEncoder(nn.Module):
         return self.feat_extractor(x)
 
     def forward(self, x):
-        start = time.time()
         B, N, C, H, W = x.size()
         # assert (N == 2)
         prev_feat = self.extract_feats(x[:, 0])
@@ -57,7 +53,6 @@ class VCShallowDecoder(nn.Module):
         return [(res_p_string, res_hp_string, res_shape), (mv_p_string, mv_hp_string, mv_shape)]
 
     def decompress(self, x):
-        start = time.time()
         prev_recon_feat, res_p_string, res_hp_string, res_shape, mv_p_string, mv_hp_string, mv_shape = x
         recon_offsets = self.motion_compressor.decompress(mv_p_string, mv_hp_string, mv_shape)
         align_feat = self.motion_compensator(prev_recon_feat, recon_offsets)
