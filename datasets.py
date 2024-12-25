@@ -74,7 +74,11 @@ class Reds(Dataset):
         for sequence in os.listdir(self.sequences):
             frame_paths = glob(os.path.join(self.sequences, sequence, "*.png"))
             for i in range(len(frame_paths) - self.sliding_window_size + 1):
-                videos.append([path for path in frame_paths[i:i + self.sliding_window_size]])
+                video = [path for path in frame_paths[i:i + self.sliding_window_size]]
+                if len(video) > 0:
+                    videos.append(video)
+                else:
+                    print(f"Skipping {sequence}. Frames not found")
         return videos
 
     def read_video(self, index):
