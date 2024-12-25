@@ -173,3 +173,39 @@ def vsrvc_basic(params, kwargs):
     }
     model_type = "PFrameNoMotionEncoder"
     return train_set, test_set, encoder_class, decoders, kwargs, decoder_kwargs, model_type
+
+
+def vsrvc_basic_shallow(params, kwargs):
+    train_set, test_set = get_sliding_window_datasets(params)
+    decoder_kwargs: Dict[str, dict] = {}
+    decoders: nn.ModuleDict[str, nn.Module] = nn.ModuleDict({})
+    motion_compensator = MotionCompensator(64)
+    if params.vc:
+        decoder_kwargs["vc"] = {
+            'in_channels': 64,
+            'mid_channels': 64,
+        }
+        decoders["vc"] = VCBasicDecoder(**decoder_kwargs['vc'])
+    else:
+        decoder_kwargs["vc"] = {}
+        decoders["vc"] = DummyVCDecoder()
+    if params.vsr:
+        decoder_kwargs["vsr"] = {
+            'in_channels': 64,
+            'mid_channels': 64,
+            "scale": params.scale,
+            "motion_compensator": MotionCompensator(64),
+        }
+        decoders["vsr"] = VSRBasicDecoder(**decoder_kwargs['vsr'])
+    else:
+        decoder_kwargs["vsr"] = {}
+        decoders["vsr"] = DummyVSRDecoder()
+    encoder_class = VSRVCBasicEncoder
+    kwargs["arch_args"]["encoder_kwargs"] = {
+        'motion_compensator': motion_compensator,
+        'in_channels': 3,
+        'mid_channels': 64,
+        'num_blocks': 5,
+    }
+    model_type = "PFrameNoMotionEncoder"
+    return train_set, test_set, encoder_class, decoders, kwargs, decoder_kwargs, model_type

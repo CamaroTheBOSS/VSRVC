@@ -89,10 +89,10 @@ class VCBasicDecoder(nn.Module):
 
 
 class VSRBasicDecoder(nn.Module):
-    def __init__(self, in_channels: int, mid_channels: int, scale: int = 2):
+    def __init__(self, in_channels: int, mid_channels: int, scale: int = 2, motion_compensator: MotionCompensator = None):
         super(VSRBasicDecoder, self).__init__()
         self.reconstruction_trunk = ResidualBlocksWithInputConv(5 * in_channels, mid_channels, 5)
-        self.shared_motion_compensator = None
+        self.shared_motion_compensator = motion_compensator
         self.dcn_module = nn.ModuleDict()
         self.refiner = nn.ModuleDict()
         self.modules = ['backward_1', 'forward_1', 'backward_2', 'forward_2']
@@ -113,6 +113,8 @@ class VSRBasicDecoder(nn.Module):
         self.lrelu = nn.LeakyReLU(negative_slope=0.1, inplace=True)
 
     def share(self, encoder):
+        if self.shared_motion_compensator is not None:
+            return
         self.shared_motion_compensator = encoder.shared_motion_compensator
 
     def propagate(self, feats_dict, offsets_forward, offsets_backward, module_name):

@@ -119,7 +119,7 @@ class Trainer(nn.Module):
                     {
                         "task": task,
                         "module": module.__class__.__name__,
-                        "kwargs": self.decoder_kwargs[task]
+                        "kwargs": process_kwargs(self.decoder_kwargs[task])
                     } for task, module in decoders.items()
                 ],
                 "weighting": weighting.__name__,
