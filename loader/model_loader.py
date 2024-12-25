@@ -31,6 +31,16 @@ def process_arch_args(arch_args):
     return arch_args
 
 
+def process_args(arch_args):
+    for key, arg in arch_args.items():
+        if isinstance(arg, dict):
+            module = modules.__dict__[arg["class"]]
+            kwargs = arg["kwargs"]
+            arch_args[key] = module(**kwargs)
+
+    return arch_args
+
+
 def get_scale_table(min=SCALES_MIN, max=SCALES_MAX, levels=SCALES_LEVELS):
     """Returns table of logarithmically scales."""
     return torch.exp(torch.linspace(math.log(min), math.log(max), levels))
@@ -108,7 +118,7 @@ def load_model(json_file, cfg=None):
         if "keyframe_interval" not in cfg.keys():
             raise KeyError("keyframe_interval key doesn't exist. Please provide value (int) in config")
     encoder_class = modules.__dict__[model_data["encoder_class"]]
-    decoders = nn.ModuleDict({d["task"]: modules.__dict__[d["module"]](**d["kwargs"]) for d in model_data["decoders"]})
+    decoders = nn.ModuleDict({d["task"]: modules.__dict__[d["module"]](**process_args(d["kwargs"])) for d in model_data["decoders"]})
     weighting = weighting_method.__dict__[model_data["weighting"]]
     architecture = architecture_method.__dict__[model_data["architecture"]]
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
@@ -268,21 +278,18 @@ def load_model(json_file, cfg=None):
                         out[task].append(value)
                     continue
                 inp = video[:, i - 1:i + 1]
-                start = time.time()
                 s_rep = self.encoder.compress(prev_recon, inp)
-                same_rep = True if not isinstance(s_rep, list) and not self.multi_input else False
+                # same_rep = True if not isinstance(s_rep, list) and not self.multi_input else False
                 for tn, task in enumerate(self.task_name):
-                    ss_rep = s_rep[tn] if isinstance(s_rep, list) else s_rep
-                    ss_rep = self._prepare_rep(ss_rep, task, same_rep)
+                    # ss_rep = s_rep[tn] if isinstance(s_rep, list) else s_rep
+                    # ss_rep = self._prepare_rep(ss_rep, task, same_rep)
                     if task == "vc":
-                        results = self.decoders[task].compress(ss_rep)
-                        inp = (ss_rep[0],) + results[0] + results[1]
+                        results = self.decoders[task].compress(s_rep[tn])
+                        inp = (s_rep[tn][0],) + results[0] + results[1]
                         prev_recon = self.decoders[task].decompress(inp)
                         out[task].append(results)
                     else:
-                        out[task].append(self.decoders[task](ss_rep))
-                end = time.time()
-                # print(f"Inference time: {end - start}")
+                        out[task].append(self.decoders[task](s_rep[tn]))
             return out
 
         def decompress(self, inputs):
@@ -297,6 +304,23 @@ def load_model(json_file, cfg=None):
                 prev_feat = self.encoder.extract_feats(recon)
                 reconstructed_video.append(recon)
             return torch.stack(reconstructed_video, dim=1)
+
+        def compress_no_bitstream(self, video):
+            out = {task: [] for task in self.task_name}
+            for i in range(0, video.size()[1]):
+                if i % self.keyframe_interval == 0:
+                    inp = video[:, i:i + 1]
+                    results = self.iframe_model(inp)
+                else:
+                    inp = video[:, i - 1:i + 1]
+                    results = self(inp)
+                if isinstance(results["vc"], tuple):
+                    results["vc"] = results["vc"][0]
+                for task, value in results.items():
+                    out[task].append(value)
+            return out
+
+
 
     cfg["scale"] = model_data["scale"]
     model_data['arch_args'] = process_arch_args(model_data['arch_args'])

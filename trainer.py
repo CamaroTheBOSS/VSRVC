@@ -3,6 +3,7 @@ import json
 import shutil
 from typing import cast
 
+import torch.nn.functional as F
 import torch, os
 import torch.nn as nn
 import numpy as np
@@ -194,7 +195,7 @@ class Trainer(nn.Module):
             label = label.to(self.device, non_blocking=True)
         return data, label
 
-    def process_preds(self, preds, task_name=None):
+    def process_preds(self, preds):
         return preds
 
     def _compute_loss(self, preds, gts, task_name=None):
@@ -330,7 +331,7 @@ class Trainer(nn.Module):
             if not self.multi_input:
                 for batch_index in range(test_batch):
                     test_inputs, test_gts = self._process_data(test_loader)
-                    test_inputs, test_gts = self.augment_data(test_inputs)
+                    # test_inputs, test_gts = self.augment_data(test_inputs)
                     test_preds = self.model(test_inputs)
                     self.meter.update(test_preds, test_gts)
                     self.logger.print(f"{batch_index + 1}/{test_batch}")

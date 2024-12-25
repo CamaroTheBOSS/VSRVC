@@ -24,7 +24,7 @@ class VSRVCBasicEncoder(nn.Module):
 
     def compress(self, prev_recon, x):
         B, N, C, H, W = x.size()
-        assert (N == 2)
+        # assert (N == 2)
         prev_feat = self.extract_feats(x[:, 0])
         curr_feat = self.extract_feats(x[:, 1])
         prev_recon_feat = self.extract_feats(prev_recon)
@@ -37,7 +37,7 @@ class VSRVCBasicEncoder(nn.Module):
 
     def forward(self, x):
         B, N, C, H, W = x.size()
-        assert (N == 2)
+        # assert (N == 2)
         prev_feat = self.extract_feats(x[:, 0])
         curr_feat = self.extract_feats(x[:, 1])
         offsets_forward = self.motion_estimator(prev_feat, curr_feat)
@@ -161,7 +161,8 @@ class VSRBasicDecoder(nn.Module):
         for module in self.modules:
             feats_dict[module] = []
             feats_dict = self.propagate(feats_dict, offsets_forward, offsets_backward, module)
-        return self.upsample(feats_dict, lqs)
+        output = self.upsample(feats_dict, lqs)
+        return output
 
 
 class FirstOrderDCN(nn.Module):

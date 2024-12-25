@@ -1,6 +1,8 @@
 import glob
 import json
 import os
+import time
+
 import torch
 
 from LibMTL.utils import set_random_seed
@@ -24,21 +26,24 @@ def get_eval_filename(cfg: dict):
 
 
 @torch.no_grad()
-def _eval_example(model, dataset, index, meter=None, results=None, save_root=None):
+def _eval_example_no_bitstream(model, dataset, index, meter=None, results=None, save_root=None):
     if meter is None:
         meter = UVGMetrics()
     if results is None:
         results = {"vc_psnr": [], "vc_ssim": [], "vsr_psnr": [], "vsr_ssim": [], "bpp": []}
 
     inp, gt = dataset[index]
-    compress_preds = model.compress(inp)
+    start = time.time()
+    compress_preds = model.compress_no_bitstream(inp)
+    compress_time = time.time() - start
     upscaled_video = torch.stack(compress_preds["vsr"], dim=1)
-    reconstructed_video = model.decompress(compress_preds["vc"])
-    meter.update(upscaled_video, compress_preds["vc"], reconstructed_video, gt)
+    reconstructed_video = torch.stack(compress_preds["vc"], dim=1)
+    meter.update(upscaled_video, None, reconstructed_video, gt)
     log = f"{dataset.get_name_with_index(index)}:\n"
     for key, value in meter.get_records_dict().items():
         log += f"   {key}: {value}\n"
         results[key].append(value)
+    log += f"   time: {compress_time}\n"
     meter.reinit()
     print(log)
 
@@ -46,30 +51,72 @@ def _eval_example(model, dataset, index, meter=None, results=None, save_root=Non
         save_video(upscaled_video, save_root, name="upscaled")
         save_video(reconstructed_video, save_root, name="compressed")
 
-    return results
+    return results, compress_time
+
+
+@torch.no_grad()
+def _eval_example(model, dataset, index, meter=None, results=None, save_root=None):
+    if meter is None:
+        meter = UVGMetrics()
+    if results is None:
+        results = {"vc_psnr": [], "vc_ssim": [], "vsr_psnr": [], "vsr_ssim": [], "bpp": []}
+
+    inp, gt = dataset[index]
+    start = time.time()
+    compress_preds = model.compress(inp)
+    compress_time = time.time() - start
+    upscaled_video = torch.stack(compress_preds["vsr"], dim=1)
+    start = time.time()
+    reconstructed_video = model.decompress(compress_preds["vc"])
+    decompress_time = time.time() - start
+    meter.update(upscaled_video, compress_preds["vc"], reconstructed_video, gt)
+    log = f"{dataset.get_name_with_index(index)}:\n"
+    for key, value in meter.get_records_dict().items():
+        log += f"   {key}: {value}\n"
+        results[key].append(value)
+    log += f"   compress time: {compress_time}\n"
+    log += f"   decompress time: {decompress_time}\n"
+    meter.reinit()
+    print(log)
+
+    if save_root is not None:
+        save_video(upscaled_video, save_root, name="upscaled")
+        save_video(reconstructed_video, save_root, name="compressed")
+
+    return results, compress_time
 
 
 @torch.no_grad()
 def eval_one(model_root: str, index, cfg=None, save_root=None):
     dataset = UVGDataset("../../Datasets/UVG", 4)
     model = load_model(model_root, cfg)
-    results = _eval_example(model, dataset, index, save_root=save_root)
+    name = dataset.get_name_with_index(index)
+    save_root = os.path.join(save_root, name) if save_root is not None else None
+    results, compress_time = _eval_example(model, dataset, index, save_root=save_root)
     return results
 
 
 @torch.no_grad()
-def eval_all(model_root: str, cfg=None):
+def eval_all(model_root: str, cfg=None, save_root=None, write_bitstream=True):
     if cfg is None:
         cfg = {}
     uvg_set = UVGDataset("../../Datasets/UVG", 4)
     model = load_model(model_root, cfg)
     meter = UVGMetrics()
     results = {"vc_psnr": [], "vc_ssim": [], "vsr_psnr": [], "vsr_ssim": [], "bpp": []}
+    times = []
     for index in range(len(uvg_set)):
-        results = _eval_example(model, uvg_set, index, meter=meter, results=results)
+        name = uvg_set.get_name_with_index(index)
+        save_path = os.path.join(save_root, name) if save_root is not None else None
+        if write_bitstream:
+            results, compress_time = _eval_example(model, uvg_set, index, meter=meter, results=results, save_root=save_path)
+        else:
+            results, compress_time = _eval_example_no_bitstream(model, uvg_set, index, meter=meter, results=results, save_root=save_path)
+        times.append(compress_time)
+    print(f"AVG TIME: {sum(times) / len(times)}")
     results["meta"] = cfg
-    with open(os.path.join(model_root, get_eval_filename(cfg)), "w") as f:
-        json.dump(results, f)
+    # with open(os.path.join(model_root, get_eval_filename(cfg)), "w") as f:
+    #     json.dump(results, f)
 
 
 def eval_all_models(shared_cfg):
@@ -97,6 +144,9 @@ if __name__ == "__main__":
         "keyframe_interval": 12,
     }
     # eval_all_models(eval_cfg)
-    tested_model = "../weights/VSRVC shallow/512"
-    # eval_all(tested_model, eval_cfg)
-    eval_one(tested_model, 6, eval_cfg, tested_model)
+    # "VSRVC shallow/128", "VC shallow/128", "VSR shallow/128",
+    for model in ["VSRVC basic shallow/128", "VSRVC basic shallow/256", "VSRVC basic shallow/384",
+                  "VSRVC basic shallow/512", "VSRVC basic shallow/640"]:
+        tested_model = os.path.join(f"../weights/{model}")
+        eval_all(tested_model, eval_cfg, save_root=None, write_bitstream=True)
+

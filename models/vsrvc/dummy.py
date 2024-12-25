@@ -9,7 +9,7 @@ class DummyVCDecoder(nn.Module):
         self.device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
     def compress(self, x: torch.Tensor):
-        if len(x) == 2:
+        if len(x) <= 3:
             return [([b''], [b''], 0), ([b''], [b''], 0)]
         align_feat, curr_feat, mv_p_string, mv_hp_string, mv_shape = x
         return [([b''], [b''], 0), (mv_p_string, mv_hp_string, mv_shape)]

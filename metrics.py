@@ -136,9 +136,12 @@ class UVGMetrics:
                 vc_psnr_value = torch.clamp(psnr(vc_pred, vc_gt[:, i]), 0, 255).item()
                 vc_ssim_value = torch.clamp(ssim(vc_pred, vc_gt[:, i]), 0, 1).item()
                 bpp_values = []
-                for j in range(len(vc_compress_data[i])):
-                    compress_data_pred = vc_compress_data[i][j][:-1]
-                    bpp_values += [len(s[0]) * bpp_const for s in compress_data_pred]
+                if vc_compress_data is not None:
+                    for j in range(len(vc_compress_data[i])):
+                        compress_data_pred = vc_compress_data[i][j][:-1]
+                        bpp_values += [len(s[0]) * bpp_const for s in compress_data_pred]
+                else:
+                    bpp_values.append([0, 0, 0, 0])
             else:
                 vc_psnr_value = 0.
                 vc_ssim_value = 0.
@@ -355,7 +358,7 @@ def BD_RATE(R1, PSNR1, R2, PSNR2, piecewise=0):
         interval = lin[1]
         samples = lin[0]
         f1 = PchipInterpolator(np.sort(PSNR1), lR1[np.argsort(PSNR1)])
-        f2 = PchipInterpolator(np.sort(PSNR2), lR1[np.argsort(PSNR2)])
+        f2 = PchipInterpolator(np.sort(PSNR2), lR2[np.argsort(PSNR2)])
         v1 = f1(samples)
         v2 = f2(samples)
         # Calculate the integral using the trapezoid method on the samples.

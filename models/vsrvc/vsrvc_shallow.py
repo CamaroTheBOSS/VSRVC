@@ -17,7 +17,7 @@ class VSRVCShallowEncoder(nn.Module):
 
     def compress(self, prev_recon, x):
         B, N, C, H, W = x.size()
-        assert (N == 2)
+        # assert (N == 2)
         curr_feat = self.extract_feats(x[:, 1])
         prev_recon_feat = self.extract_feats(prev_recon)
         return [(prev_recon_feat, curr_feat), (curr_feat, x[:, -1])]
@@ -27,7 +27,7 @@ class VSRVCShallowEncoder(nn.Module):
 
     def forward(self, x):
         B, N, C, H, W = x.size()
-        assert (N == 2)
+        # assert (N == 2)
         prev_feat = self.extract_feats(x[:, 0])
         curr_feat = self.extract_feats(x[:, 1])
         return [(prev_feat, curr_feat), (curr_feat, x[:, -1])]

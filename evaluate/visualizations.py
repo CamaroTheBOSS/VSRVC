@@ -14,7 +14,7 @@ from LibMTL.utils import set_random_seed
 from datasets import UVGDataset
 from evaluate import _eval_example
 from metrics import psnr
-from plots import _validate_task, load_eval_file
+from plots import _validate_task, load_eval_file, load_alg_database
 from loader.model_loader import load_model
 from utils import to_cv2
 
@@ -42,7 +42,7 @@ def draw_box(img, box, color=(0, 0, 255), thickness=3):
     return img
 
 
-def mosaic(task, model_roots, example, gen_mask=None, box=(0, 0, 100, 100), frame_idx=-1, save_root="."):
+def mosaic(task, model_roots, example, gen_mask=None, box=(0, 0, 100, 100), frame_idx=-1, save_root=".", legend=None, n=""):
     _validate_task(task)
     if gen_mask is None:
         gen_mask = [0 for _ in model_roots]
@@ -61,11 +61,14 @@ def mosaic(task, model_roots, example, gen_mask=None, box=(0, 0, 100, 100), fram
             paths = glob.glob(os.path.join(root, f"*.png"))
         path = paths[frame_idx]
         img = crop_box(cv2.imread(path), box)
-        cv2.imwrite(os.path.join(save_root, f"{task}_{i}.png"), img)
+        name = f"{task}_{legend[i]}.png" if legend is not None else f"{task}_{i}.png"
+        cv2.imwrite(os.path.join(save_root, name), img)
     original_box = np.copy(crop_box(gt, box))
     original = draw_box(gt, box, thickness=2 if task == "vc" else 8)
-    cv2.imwrite(os.path.join(save_root, f"{task}_original_box.png"), original_box)
-    cv2.imwrite(os.path.join(save_root, f"{task}_original.png"), original)
+    name = f"{task}_{n}_ORIGINAL_BOX.png"
+    cv2.imwrite(os.path.join(save_root, name), original_box)
+    name = f"{task}_{n}_ORIGINAL.png"
+    cv2.imwrite(os.path.join(save_root, name), original)
 
 
 def moving_average(a, n=3):
@@ -117,18 +120,18 @@ def make_segments(x, y):
     return segments
 
 
-def plot_loss(run_strings, legend):
-    scan_data = scan_history_multiple(run_strings, ["train_vc_loss", "train_vsr_loss"])
-    for i, data in enumerate(scan_data):
+def plot_loss(run_strings, legend, metric_keys, xy_labels):
+    scan_data = scan_history_multiple(run_strings, metric_keys)
+    for i, (data, keys, labels) in enumerate(zip(scan_data, metric_keys, xy_labels)):
         fig = plt.figure()
-        vc_loss = moving_average(data["train_vc_loss"], 10)
-        vsr_loss = moving_average(data["train_vsr_loss"], 10)
+        vc_loss = moving_average(data[keys[0]], 10)
+        vsr_loss = moving_average(data[keys[1]], 10)
         z = np.power(np.linspace(0.0005, 1.0, len(vc_loss)), 1 / 8)
         colorline(vc_loss, vsr_loss, z=z, cmap=plt.get_cmap('YlOrRd'))
         plt.xlim([np.min(vc_loss), np.max(vc_loss)])
         plt.ylim([np.min(vsr_loss), np.max(vsr_loss)])
-        plt.xlabel("Funkcja kosztu zadania kompresji")
-        plt.ylabel("Funkcja kosztu zadania super-rozdzielczości")
+        plt.xlabel(labels[0])
+        plt.ylabel(labels[1])
         plt.title(legend[i])
     plt.show()
 
@@ -142,7 +145,10 @@ def scan_history(run_string, keys):
 
 
 def scan_history_multiple(run_strings, keys):
-    return [scan_history(run_str, keys) for run_str in run_strings]
+    hist = []
+    for run_str, key in zip(run_strings, keys):
+        hist.append(scan_history(run_str, key))
+    return hist
 
 
 def set_x_ticks_to_epochs(fig, steps_per_epoch=2328, sparsity=1):
@@ -212,53 +218,125 @@ def plot_grad_stats(run_strings, mode="per batch", legend=None):
     plt.show()
 
 
+def plot_gradnorms(run_strings, mode="per epoch", legend=None):
+    keys = ["grad_vsr_norm", "grad_vc_norm"]
+    scan_data = [scan_history(run_str, keys) for run_str in run_strings]
+    steps_per_epoch = 2328
+    for e, data in enumerate(scan_data):
+        fig = plt.figure()
+        for key in keys:
+            steps = len(data[key])
+            epochs = steps // steps_per_epoch
+            per_epoch_x = np.arange(steps_per_epoch, steps, steps_per_epoch)
+            history_reshaped = data[key][:epochs * steps_per_epoch].reshape(-1, steps_per_epoch)
+            plt.plot(per_epoch_x, history_reshaped.mean(axis=1))
+        fig = set_x_ticks_to_epochs(fig, steps_per_epoch, sparsity=2)
+        plt.ylabel("Norma")
+        plt.xlabel("Epoka")
+        if legend is not None:
+            plt.legend(["Norma gradientu zadania super-rozdzielczości", "Norma gradientu zadania kompresji"])
+            plt.title(legend[e])
+    plt.show()
+
+
 def get_stats_for_frame(eval_files, vid_idx, frame_idx):
     for eval_file in eval_files:
-        eval_data = load_eval_file(eval_file)
-        result = {
-            "bpp": eval_data["bpp"][vid_idx][frame_idx].sum(),
-            "vc_psnr": eval_data["vc_psnr"][vid_idx][frame_idx],
-            "vc_ssim": eval_data["vc_ssim"][vid_idx][frame_idx],
-            "vsr_psnr": eval_data["vsr_psnr"][vid_idx][frame_idx],
-            "vsr_ssim": eval_data["vsr_ssim"][vid_idx][frame_idx]
-        }
+        if eval_file.startswith("db"):
+            eval_data = load_alg_database(eval_file, "hevc")
+            result = {
+                "bpp": eval_data["bpp"][10][vid_idx].mean(),
+                "vc_psnr": eval_data["vc_psnr"][10][vid_idx][frame_idx],
+                "vc_ssim": eval_data["vc_ssim"][10][vid_idx][frame_idx],
+            }
+            eval_data = load_alg_database(eval_file, "bilinear")
+            result["vsr_psnr"] = eval_data["vsr_psnr"][vid_idx][frame_idx]
+            result["vsr_ssim"] = eval_data["vsr_ssim"][vid_idx][frame_idx]
+
+        else:
+            eval_data = load_eval_file(eval_file)
+            result = {
+                "bpp": eval_data["bpp"][vid_idx][frame_idx].sum(),
+                "vc_psnr": eval_data["vc_psnr"][vid_idx][frame_idx],
+                "vc_ssim": eval_data["vc_ssim"][vid_idx][frame_idx],
+                "vsr_psnr": eval_data["vsr_psnr"][vid_idx][frame_idx],
+                "vsr_ssim": eval_data["vsr_ssim"][vid_idx][frame_idx]
+            }
         print(f"frame {vid_idx}.{frame_idx}: {result}")
 
 
 if __name__ == "__main__":
     # set_random_seed(777)
-    # shallow_algorithms = [
-    #     "camarotheboss/VSRVC/nsljta4h",  # EW
-    #     "camarotheboss/VSRVC/gq3tvmdf",  # GradNorm
-    #     "camarotheboss/VSRVC/oqokt5n7",  # DB_MTL
-    #     "camarotheboss/VSRVC/cg4vyau5"   # GradVac
+    shallow_algorithms = [
+        "camarotheboss/VSRVC/nsljta4h",  # EW
+        "camarotheboss/VSRVC/gq3tvmdf",  # GradNorm
+        "camarotheboss/VSRVC/oqokt5n7",  # DB_MTL
+        "camarotheboss/VSRVC/cg4vyau5"   # GradVac
+    ]
+    legend = ["Normy gradientów w zależności od epoki (Zrównoważone wagi)",
+              "Normy gradientów w zależności od epoki (GradNorm)",
+              "Normy gradientów w zależności od epoki (DB_MTL)",
+              "Normy gradientów w zależności od epoki (GradVac)"]
+
+    # dbmtl_other_tasks = [
+    #     "camarotheboss/VSRVC/nsljta4h",
+    #     "camarotheboss/VSRVC/4xjdo1eg",
+    #     "camarotheboss/VSRVC/mejefr7f",
+    #     "camarotheboss/VSRVC/0dgg1ptu",
+    #     "camarotheboss/VSRVC/rycj71j6"
     # ]
-    # legend = ["EW", "GradNorm", "DB_MTL", "GradVac"]
-    # plot_grad_stats(shallow_algorithms, mode="per epoch", legend=legend)
-    # plot_loss(shallow_algorithms, legend)
-    fvc_images = r"D:\Code\ENVS\PyTorchVideoCompression\FVC\woutputs"
-    dcvc_images = r"D:\Code\DCVC\DCVC-FM\out_bin\UVG\rate_4\ShakeNDry"
-    vc_shallow_images = r"..\weights\VC shallow\256"
-    shallow_images = r"..\weights\VSRVC shallow\512"
-    # mosaic("vc", [fvc_images, dcvc_images, vc_shallow_images, shallow_images], 5,
-    #        save_root="../weights", box=(150, 100, 64, 64), frame_idx=10)
+    # legend = ["VSRVC 128", "VSRVC 256", "VSRVC 384", "VSRVC 512", "VSRVC 640"]
+    metric_keys = [["train_vc_loss", "train_vsr_loss"]] * 4
+    xy_labels = [["Funkcja kosztu zadania kompresji", "Funkcja kosztu zadania super-rozdzielczości"]] * 4
+    plot_gradnorms(shallow_algorithms, legend=legend)
+    plot_grad_stats(shallow_algorithms, mode="per epoch", legend=legend)
+    # plot_loss(dbmtl_other_tasks, legend, metric_keys, xy_labels)
+
+    names = ["Beauty", "Bosphorus", "HoneyBee", "Jockey", "ReadySteadyGo", "ShakeNDry", "YachtRide"]
+    roots = [
+        r"D:\Code\ENVS\PyTorchVideoCompression\FVC\woutputs",
+        r"D:\Code\DCVC\DCVC-FM\out_bin\UVG\rate_4",
+        r"..\weights\VC basic\384",
+        r"..\weights\VSRVC basic\256",
+        r"..\..\VSRVC\evaluation\new_outputs",
+    ]
+    legend = ["FVC", "DCVC-FM", "VC 384", "VSRVC 256", "HEVC"]
+    # roots = [
+    #     r"..\weights\VC shallow\128",
+    #     r"..\weights\VC shallow\256",
+    #     r"..\weights\VC shallow\384",
+    #     r"..\weights\VC shallow\512",
+    #     r"..\weights\VC shallow\640",
+    # ]
+    # legend = ["VSRVC 128", "VSRVC 256", "VSRVC 384", "VSRVC 512", "VSRVC 640"]
+
+    example = 3
+    name = names[example]
+    image_roots = [os.path.join(root, name) for root in roots]
+    # mosaic("vc", image_roots, example, save_root="../weights", box=(250, 40, 64, 64), frame_idx=10, legend=legend)
     # get_stats_for_frame([
-    #     "../weights/VSRVC shallow/512/eval 128 12.json",
-    #     "../weights/VC shallow/256/eval 128 12.json",
+    #     "../weights/VSRVC basic/256/eval 128 12.json",
+    #     "../weights/VC basic/384/eval 128 12.json",
     #     "../weights/DCVC-FM_rate_4.json",
     #     "../weights/fvc-8192.json",
-    # ], 5, 10)
-
-    basicvsr_images = r"D:\Code\ENVS\BasicVSR_PlusPlus\outputs\vimeo90k_bd\YachtRide_0"
-    iart_images = r"D:\Code\ENVS\IART\results\vimeo90k_BDx4_UVG\YachtRide_0"
-    bilinear_images = r"D:\Code\Datasets\UVG_bilinear\YachtRide"
-    vsr_shallow_images = r"..\weights\VSR shallow\128"
-    mosaic("vsr", [bilinear_images, basicvsr_images, iart_images, shallow_images, vsr_shallow_images], 6,
-           save_root="../weights", box=(525, 475, 128, 128), frame_idx=10)
+    #     "db_veryslow_uvg.json",
+    # ], example, 10)
+    #
+    example = 0
+    name = names[example]
+    roots = [
+        r"D:\Code\ENVS\BasicVSR_PlusPlus\outputs\vimeo90k_bd",
+        r"D:\Code\ENVS\IART\results\vimeo90k_BDx4_UVG",
+        r"..\weights\VSR basic\128",
+        r"..\weights\VSRVC basic\256",
+        r"D:\Code\Datasets\UVG_bilinear",
+    ]
+    legend = ["BASICVSR", "IART", "VSR", "VSRVC 256", "BILINEAR"]
+    image_roots = [os.path.join(root, name + ("_0" if i < 2 else "")) for i, root in enumerate(roots) ]
+    mosaic("vsr", image_roots, example, save_root="../weights", box=(900, 600, 192, 192), frame_idx=10, legend=legend)
     get_stats_for_frame([
-        "../weights/VSRVC shallow/512/eval 128 12.json",
-        "../weights/VSR shallow/128/eval 128 12.json",
+        "../weights/VSRVC basic/256/eval 128 12.json",
+        "../weights/VSR basic/128/eval 128 12.json",
         "../weights/basicvsr_plusplus_trained.json",
         "../weights/iart_bd.json",
-    ], 6, 10)
-
+        "db_veryslow_uvg.json",
+    ], example, 10)
