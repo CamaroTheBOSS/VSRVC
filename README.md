@@ -54,10 +54,10 @@ python main.py --model_type vsrvc_shallow --vimeo_path ../Datasets/VIMEO90k --we
 Dataset should have structure:
 ```
 vimeo_root
-    train
+    gt
         061
         ...
         070
-    sep_testlist.txt
-    sep_trainlist.txt
+    vsrvc_sep_testlist.txt
+    vsrvc_sep_trainlist.txt
 ```
