@@ -58,7 +58,7 @@ class Trainer(nn.Module):
 
         self.meter = _PerformanceMeter(self.task_dict, self.multi_input)
         self.crop_size = (256, 256)
-        self.augmentation = Augmentation(multi_input, scale, dataset_type)
+        self.augmentation = Augmentation(multi_input, scale, dataset_type, model_type)
 
     def augment_data(self, data, task=None):
         return self.augmentation(data, task, training_mode=self.training)

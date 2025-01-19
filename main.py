@@ -6,9 +6,11 @@ from torch.utils.data import DataLoader
 from LibMTL.utils import set_device, set_random_seed
 from config import get_libmtl_parser, prepare_args
 from trainer import Trainer
-from metrics import CompressionTaskMetrics, RateDistortionLoss, QualityMetrics, VSRLoss, DummyMetrics, DummyLoss
+from metrics import CompressionTaskMetrics, RateDistortionLoss, QualityMetrics, VSRLoss, DummyMetrics, DummyLoss, \
+    DynamicRateDistortionLoss, DynamicCompressionTaskMetrics
 import wandb
-from training_configs import vsrvc, vsrvc_motion_residual, vsrvc_shallow_encoder, vsrvc_basic, vsrvc_basic_shallow
+from training_configs import vsrvc, vsrvc_motion_residual, vsrvc_shallow_encoder, vsrvc_basic, vsrvc_basic_shallow, \
+    dcvcfm
 
 
 def parse_args(parser):
@@ -16,8 +18,10 @@ def parse_args(parser):
     parser.add_argument('--batch_size', default=16, type=int, help='batch size for training')
     parser.add_argument('--epochs', default=30, type=int, help='training epochs')
     parser.add_argument('--lmbda', default=512, type=int, help='distortion/compression ratio')
-    parser.add_argument('--vimeo_path', type=str, help='path to vimeo90k dataset, if provided vimeo will be used for training')
-    parser.add_argument('--reds_path', type=str, help='path to reds dataset, if provided reds will be used for training')
+    parser.add_argument('--vimeo_path', type=str,
+                        help='path to vimeo90k dataset, if provided vimeo will be used for training')
+    parser.add_argument('--reds_path', type=str,
+                        help='path to reds dataset, if provided reds will be used for training')
     parser.add_argument('--num_workers', default=0, type=int, help='num workers in dataloaders')
     parser.add_argument('--enable_wandb', action='store_true', default=False, help='whether to enable wandb')
     parser.add_argument('--sliding_window', default=1, type=int, help='sliding window size for processing video by '
@@ -44,6 +48,8 @@ def get_run_name(params):
         model_type = ' basic '
     elif params.model_type == "vsrvc_basic_shallow":
         model_type = ' basic shallow '
+    elif params.model_type == "dcvc":
+        model_type = ' dcvc-fm '
 
     multi_input = ' multi_input' if params.multi_input else ''
     dataset = "vimeo" if params.vimeo_path is not None else "reds"
@@ -62,6 +68,8 @@ def main(params):
         f = vsrvc_basic
     elif params.model_type == "vsrvc_basic_shallow":
         f = vsrvc_basic_shallow
+    elif params.model_type == "dcvc":
+        f = dcvcfm
     else:
         raise ValueError("Unrecognized model_type. Supported ones are: vsrvc, vsrvc_res_mv, vsrvc_shallow, vsrvc_basic")
     train_set, test_set, encoder_class, decoders, kwargs, decoder_kwargs, model_type = f(params, kwargs)
@@ -70,10 +78,10 @@ def main(params):
     if params.multi_input:
         train_dataloader = {
             key: DataLoader(
-                    training_set,
-                    batch_size=params.batch_size,
-                    shuffle=True,
-                    drop_last=True,) for key, training_set in train_set.items()}
+                training_set,
+                batch_size=params.batch_size,
+                shuffle=True,
+                drop_last=True, ) for key, training_set in train_set.items()}
         test_dataloader = {
             key: DataLoader(
                 testing_set,
@@ -97,8 +105,10 @@ def main(params):
     task_dict: Dict[str, dict] = {}
     if params.vc:
         task_dict["vc"] = {'metrics': ['psnr', 'ssim', 'bpp'],
-                           'metrics_fn': CompressionTaskMetrics(),
-                           'loss_fn': RateDistortionLoss(params.lmbda),
+                           'metrics_fn': DynamicCompressionTaskMetrics()
+                           if params.model_type == "dcvc" else CompressionTaskMetrics(),
+                           'loss_fn': DynamicRateDistortionLoss(128, 640, 0, 64)
+                           if params.model_type == "dcvc" else RateDistortionLoss(params.lmbda),
                            'weight': [1, 1, 0]}
     else:
         task_dict["vc"] = {'metrics': [], 'metrics_fn': DummyMetrics(), 'loss_fn': DummyLoss(), 'weight': []}
@@ -146,7 +156,6 @@ def run():
     set_device(params.gpu_id)
     set_random_seed(params.seed)
     main(params)
-
 
 
 if __name__ == "__main__":

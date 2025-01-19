@@ -6,7 +6,36 @@ from LibMTL.loss import AbsLoss
 from LibMTL.metrics import AbsMetric
 from torch import nn, Tensor
 from torchmetrics.functional.image import structural_similarity_index_measure, peak_signal_noise_ratio
+import torch.nn.functional as f
 
+
+class DynamicRateDistortionLoss(AbsLoss):
+    def __init__(self, lmbda_min: int, lmbda_max: int, q_min: int, q_max: int):
+        super(DynamicRateDistortionLoss, self).__init__()
+        self.distortion = nn.L1Loss()
+        self.lmbda_min = lmbda_min
+        self.lmbda_max = lmbda_max
+        self.q_min = q_min
+        self.q_max = q_max
+
+    def compute_loss(self, pred, gt):
+        reconstruction, bits, q_index = pred
+        lmbda = (self.lmbda_min * (self.q_max - q_index) + self.lmbda_max * (q_index - self.q_min)) / (self.q_max - self.q_min)
+        B, N, _, H, W = reconstruction.shape
+        num_pixels = N * B * H * W
+        bpp_loss = sum(sum(bit) for bit in bits) / num_pixels
+        return_value = lmbda * self.distortion(reconstruction, gt) + bpp_loss
+        return return_value
+
+    def _update_loss(self, pred, gt):
+        loss = self.compute_loss(pred, gt)
+        self.record.append(loss.item())
+        self.bs.append(pred[0].size()[0])
+        return loss
+
+    def _reinit(self):
+        self.record = []
+        self.bs = []
 
 class RateDistortionLoss(AbsLoss):
     def __init__(self, lmbda: int):
@@ -86,6 +115,34 @@ class QualityMetrics(AbsMetric):
         self.psnr_record = []
         self.ssim_record = []
         self.bs = []
+
+
+class DynamicCompressionTaskMetrics(AbsMetric):
+    def __init__(self):
+        super(DynamicCompressionTaskMetrics, self).__init__()
+        self.quality_metrics = QualityMetrics()
+        self.bpp_record = []
+
+    def update_fun(self, pred, gt):
+        reconstruction, bits, _ = pred
+        B, N, _, H, W = reconstruction.shape
+        num_pixels = N * B * H * W
+        bpp = sum(sum(bit) for bit in bits) / num_pixels
+        self.bpp_record.append(bpp)
+        self.quality_metrics.update_fun(reconstruction, gt)
+        self.bs.append(reconstruction.size()[0])
+
+    def score_fun(self):
+        metrics = self.quality_metrics.score_fun()
+        bpp_records = torch.tensor(self.bpp_record)
+        metrics.extend([bpp_records.mean()])
+        return metrics
+
+    def reinit(self):
+        self.quality_metrics.reinit()
+        self.bpp_record = []
+        self.bs = []
+
 
 
 class CompressionTaskMetrics(AbsMetric):

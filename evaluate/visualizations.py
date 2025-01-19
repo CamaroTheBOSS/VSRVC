@@ -1,4 +1,6 @@
+import copy
 import glob
+import json
 import os
 
 import wandb
@@ -136,12 +138,46 @@ def plot_loss(run_strings, legend, metric_keys, xy_labels):
     plt.show()
 
 
-def scan_history(run_string, keys):
+def scan_history_api(run_string, keys):
     api = wandb.Api()
     run = api.run(run_string)
     dataframe = run.scan_history(keys=keys)
     array = np.array([[row[key] for key in keys] for row in dataframe]).transpose()
     return {key: arr for key, arr in zip(keys, array)}
+
+
+def dump_scan_history(data, path):
+    for key, val in data.items():
+        if isinstance(val, np.ndarray):
+            data[key] = list(val)
+    with open(path, "w") as f:
+        json.dump(data, f)
+
+
+def load_scan_history(path):
+    with open(path, "r") as f:
+        data = json.load(f)
+    for key, val in data.items():
+        data[key] = np.array(val)
+    return data
+
+
+def scan_history(run_string, keys):
+    path = run_string.replace("/", "-") + ".json"
+    if not os.path.exists(path):
+        data = scan_history_api(run_string, keys)
+        dump_scan_history(data, path)
+        return load_scan_history(path)
+
+    data = load_scan_history(path)
+    remaining_keys = list(filter(lambda key: key not in data.keys(), copy.copy(keys)))
+    if len(remaining_keys) > 0:
+        new_data = scan_history_api(run_string, remaining_keys)
+        for key, val in new_data.items():
+            data[key] = val
+        dump_scan_history(data, path)
+        return load_scan_history(path)
+    return data
 
 
 def scan_history_multiple(run_strings, keys):
@@ -277,18 +313,80 @@ if __name__ == "__main__":
               "Normy gradientów w zależności od epoki (DB_MTL)",
               "Normy gradientów w zależności od epoki (GradVac)"]
 
-    # dbmtl_other_tasks = [
-    #     "camarotheboss/VSRVC/nsljta4h",
-    #     "camarotheboss/VSRVC/4xjdo1eg",
-    #     "camarotheboss/VSRVC/mejefr7f",
-    #     "camarotheboss/VSRVC/0dgg1ptu",
-    #     "camarotheboss/VSRVC/rycj71j6"
-    # ]
-    # legend = ["VSRVC 128", "VSRVC 256", "VSRVC 384", "VSRVC 512", "VSRVC 640"]
-    metric_keys = [["train_vc_loss", "train_vsr_loss"]] * 4
-    xy_labels = [["Funkcja kosztu zadania kompresji", "Funkcja kosztu zadania super-rozdzielczości"]] * 4
-    plot_gradnorms(shallow_algorithms, legend=legend)
-    plot_grad_stats(shallow_algorithms, mode="per epoch", legend=legend)
+    dbmtl_other_tasks = [
+        "camarotheboss/VSRVC/nsljta4h",
+        "camarotheboss/VSRVC/4xjdo1eg",
+        "camarotheboss/VSRVC/mejefr7f",
+        "camarotheboss/VSRVC/0dgg1ptu",
+        "camarotheboss/VSRVC/rycj71j6"
+    ]
+    legend = ["VSRVC 128", "VSRVC 256", "VSRVC 384", "VSRVC 512", "VSRVC 640"]
+
+    basic_shallow = [
+        "camarotheboss/VSRVC/mwhyusox",
+        "camarotheboss/VSRVC/8ooyd85m",
+        "camarotheboss/VSRVC/2trdx646",
+        "camarotheboss/VSRVC/regfhmze",
+        "camarotheboss/VSRVC/wzctn0vp",
+    ]
+    legend = ["VSRVCv2 osobne kompensatory 128", "-.- 256", "-.- 384", "-.- 512", "-.- 640"]
+
+    basic_shallow = [
+        "camarotheboss/VSRVC/mwhyusox",
+        "camarotheboss/VSRVC/8ooyd85m",
+        "camarotheboss/VSRVC/2trdx646",
+        "camarotheboss/VSRVC/regfhmze",
+        "camarotheboss/VSRVC/wzctn0vp",
+    ]
+    legend = ["VSRVCv2 128", "-.- 256", "-.- 384", "-.- 512", "-.- 640"]
+
+    basic = [
+        "camarotheboss/VSRVC/q2ouchdu",
+        "camarotheboss/VSRVC/n3xzo6rt",
+        "camarotheboss/VSRVC/cirbpnuz",
+        "camarotheboss/VSRVC/v9m3601j",
+        "camarotheboss/VSRVC/8g07e560",
+    ]
+    legend = ["VSRVCv2 EW 128", "-.- 256", "-.- 384", "-.- 512", "-.- 640"]
+
+    basic_dbmtl = [
+        "camarotheboss/VSRVC/x938xjpt",
+        "camarotheboss/VSRVC/rp5kig3n",
+        "camarotheboss/VSRVC/8mijerqv",
+        "camarotheboss/VSRVC/t2xvkluh",
+        "camarotheboss/VSRVC/gcxvkoml",
+    ]
+   # legend = ["VSRVCv2 DB_MTL 128", "-.- 256", "-.- 384", "-.- 512", "-.- 640"]
+
+    basic_gradvac = [
+        "camarotheboss/VSRVC/yo8sy41o",
+        "camarotheboss/VSRVC/47v49zqz",
+        "camarotheboss/VSRVC/6m6d0io1",
+        "camarotheboss/VSRVC/sfbzqnz6",
+        "camarotheboss/VSRVC/knt2hrhr",
+    ]
+    #legend = ["VSRVCv2 GradVac 128", "-.- 256", "-.- 384", "-.- 512", "-.- 640"]
+
+    basic_gradnorm = [
+        "camarotheboss/VSRVC/y72b36sr",
+        "camarotheboss/VSRVC/n9vfz1jk",
+        "camarotheboss/VSRVC/0kw8ixj0",
+        "camarotheboss/VSRVC/u3r6xm65",
+        "camarotheboss/VSRVC/dssrleft"
+    ]
+    #legend = ["VSRVCv2 GradNorm 128", "-.- 256", "-.- 384", "-.- 512", "-.- 640"]
+    # plot_gradnorms(shallow_algorithms, legend=legend)
+    mix = [
+        ["camarotheboss/VSRVC/q2ouchdu",
+         "camarotheboss/VSRVC/x938xjpt",
+         "camarotheboss/VSRVC/yo8sy41o",
+         "camarotheboss/VSRVC/y72b36sr",],
+        ["EW",
+         "DB_MTL",
+         "GradVac",
+         "GradNorm"]
+    ]
+    plot_grad_stats(mix[0], mode="per epoch", legend=mix[1])
     # plot_loss(dbmtl_other_tasks, legend, metric_keys, xy_labels)
 
     names = ["Beauty", "Bosphorus", "HoneyBee", "Jockey", "ReadySteadyGo", "ShakeNDry", "YachtRide"]
@@ -332,11 +430,11 @@ if __name__ == "__main__":
     ]
     legend = ["BASICVSR", "IART", "VSR", "VSRVC 256", "BILINEAR"]
     image_roots = [os.path.join(root, name + ("_0" if i < 2 else "")) for i, root in enumerate(roots) ]
-    mosaic("vsr", image_roots, example, save_root="../weights", box=(900, 600, 192, 192), frame_idx=10, legend=legend)
-    get_stats_for_frame([
-        "../weights/VSRVC basic/256/eval 128 12.json",
-        "../weights/VSR basic/128/eval 128 12.json",
-        "../weights/basicvsr_plusplus_trained.json",
-        "../weights/iart_bd.json",
-        "db_veryslow_uvg.json",
-    ], example, 10)
+    #mosaic("vsr", image_roots, example, save_root="../weights", box=(900, 600, 192, 192), frame_idx=10, legend=legend)
+    # get_stats_for_frame([
+    #     "../weights/VSRVC basic/256/eval 128 12.json",
+    #     "../weights/VSR basic/128/eval 128 12.json",
+    #     "../weights/basicvsr_plusplus_trained.json",
+    #     "../weights/iart_bd.json",
+    #     "db_veryslow_uvg.json",
+    # ], example, 10)

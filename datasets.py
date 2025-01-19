@@ -98,8 +98,9 @@ class Reds(Dataset):
 
 
 class Augmentation:
-    def __init__(self, multi_input, scale, dataset_type="vimeo"):
+    def __init__(self, multi_input, scale, dataset_type="vimeo", model_type=""):
         self.multi_input = multi_input
+        self.model_type = model_type
         self.scale = scale
         if dataset_type == "vimeo":
             self.prepare_vimeo_augmentation()
@@ -181,11 +182,11 @@ class Augmentation:
             if training_mode:
                 hqs = torch.stack([self.augmentation(vid) for vid in data])
                 lqs = torch.stack([self.resize(vid) for vid in hqs])
-                label = {"vc": lqs[:, -1].clone(), "vsr": hqs[:, -1]}
+                label = {"vc": lqs[:, 1:].clone() if self.model_type == "DCVC" else lqs[:, -1].clone(), "vsr": hqs[:, -1]}
                 return lqs, label
             hqs = data[:, :, :, :self.crop_size[0], :self.crop_size[1]]
             lqs = torch.stack([self.resize(vid) for vid in hqs])
-            label = {"vc": lqs[:, -1].clone(), "vsr": hqs[:, -1]}
+            label = {"vc": lqs[:, 1:].clone() if self.model_type == "DCVC" else lqs[:, -1].clone(), "vsr": hqs[:, -1]}
             return lqs, label
         else:
             if training_mode:

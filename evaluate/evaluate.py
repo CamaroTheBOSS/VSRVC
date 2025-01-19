@@ -115,8 +115,8 @@ def eval_all(model_root: str, cfg=None, save_root=None, write_bitstream=True):
         times.append(compress_time)
     print(f"AVG TIME: {sum(times) / len(times)}")
     results["meta"] = cfg
-    # with open(os.path.join(model_root, get_eval_filename(cfg)), "w") as f:
-    #     json.dump(results, f)
+    with open(os.path.join(model_root, get_eval_filename(cfg)), "w") as f:
+        json.dump(results, f)
 
 
 def eval_all_models(shared_cfg):
@@ -145,8 +145,8 @@ if __name__ == "__main__":
     }
     # eval_all_models(eval_cfg)
     # "VSRVC shallow/128", "VC shallow/128", "VSR shallow/128",
-    for model in ["VSRVC basic shallow/128", "VSRVC basic shallow/256", "VSRVC basic shallow/384",
-                  "VSRVC basic shallow/512", "VSRVC basic shallow/640"]:
+    for model in ["VSRVC basic/256", "VSRVC basic/384", "VSRVC basic/512",
+                  "VSRVC basic/640", "VSRVC basic/GradNorm 384", "VSRVC basic/GradNorm 640"]:
         tested_model = os.path.join(f"../weights/{model}")
         eval_all(tested_model, eval_cfg, save_root=None, write_bitstream=True)
 

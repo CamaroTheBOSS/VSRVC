@@ -3,6 +3,8 @@ from typing import Dict
 from torch import nn
 
 from datasets import Vimeo90k, Reds
+from models.dcvcfm.models.dcvcencoder import DCVCEncoder
+from models.dcvcfm.models.video_model import DMC
 from models.motion_blocks import MotionCompensator
 from models.vsrvc.vsrvc_basicvsr import VCBasicDecoder, VSRBasicDecoder, VSRVCBasicEncoder
 from models.vsrvc.vsrvc_mv import VSRVCMotionResidualEncoder, VCMotionResidualDecoder, VSRMotionResidualDecoder
@@ -208,4 +210,33 @@ def vsrvc_basic_shallow(params, kwargs):
         'num_blocks': 5,
     }
     model_type = "PFrameNoMotionEncoder"
+    return train_set, test_set, encoder_class, decoders, kwargs, decoder_kwargs, model_type
+
+
+def dcvcfm(params, kwargs):
+    dataset_class, dataset_path = get_dataset_info(params)
+    train_set = dataset_class(dataset_path, sliding_window_size=2)
+    test_set = dataset_class(dataset_path, test_mode=True, sliding_window_size=2)
+    decoder_kwargs: Dict[str, dict] = {}
+    decoders: nn.ModuleDict[str, nn.Module] = nn.ModuleDict({})
+    if params.vc:
+        decoder_kwargs["vc"] = {}
+        decoders["vc"] = DMC(**decoder_kwargs['vc'])
+    else:
+        decoder_kwargs["vc"] = {}
+        decoders["vc"] = DummyVCDecoder()
+    if params.vsr:
+        decoder_kwargs["vsr"] = {
+            'in_channels': 64,
+            'mid_channels': 64,
+            "scale": params.scale,
+            "motion_compensator": MotionCompensator(64),
+        }
+        decoders["vsr"] = VSRBasicDecoder(**decoder_kwargs['vsr'])
+    else:
+        decoder_kwargs["vsr"] = {}
+        decoders["vsr"] = DummyVSRDecoder()
+    encoder_class = DCVCEncoder
+    kwargs["arch_args"]["encoder_kwargs"] = {}
+    model_type = "DCVC"
     return train_set, test_set, encoder_class, decoders, kwargs, decoder_kwargs, model_type

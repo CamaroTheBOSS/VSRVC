@@ -166,7 +166,7 @@ def plot_vc_multiple(eval_files, database_path, linestyles=None, colors=None, le
 
 
 def _get_vsr(data):
-    quality = {"vsr_psnr": np.round(data["vsr_psnr"].mean(), 2), "vsr_ssim": np.round(data["vsr_ssim"].mean(), 2)}
+    quality = {"vsr_psnr": np.round(data["vsr_psnr"].mean(), 2), "vsr_ssim": np.round(data["vsr_ssim"].mean(), 4)}
     return quality
 
 
@@ -366,26 +366,14 @@ if __name__ == "__main__":
         "../weights//VSRVC shallow/GradVac 640/eval 128 12.json",
     ], "VSRVC GradVac")
 
-    # mv_series = Series([
-    #     "../weights//VSRVC mv/128/eval 128 12 adapt.json",
-    #     "../weights//VSRVC mv/256/eval 128 12.json",
-    #     "../weights//VSRVC mv/384/eval 128 12.json",
-    #     "../weights//VSRVC mv/512/eval 128 12.json",
-    #     "../weights//VSRVC mv/640/eval 128 12.json",
-    # ], "VSRVCv2")
-    # mv_series_only_vc = Series([
-    #     "../weights//VC mv/128/eval 128 12.json",
-    #     "../weights//VC mv/256/eval 128 12.json",
-    #     "../weights//VC mv/384/eval 128 12.json",
-    #     "../weights//VC mv/512/eval 128 12.json",
-    #     "../weights//VC mv/640/eval 128 12.json",
-    # ], "VCv2", vsr=False)
-    # mv_only_vsr = Series("../weights//VSR mv/128/eval 128 12.json", "VSRv2", vc=False)
-    # mv_ew = Series("../weights//VSRVC mv/128/eval 128 12 adapt.json", "VSRVCv2 EW")
-    # mv_gradnorm = Series("../weights//VSRVC mv/GradNorm 128/eval 128 12 adapt.json", "VSRVCv2 GradNorm")
-    # mv_dbmtl = Series("../weights//VSRVC mv/DB_MTL 128/eval 128 12 adapt.json", "VSRVCv2 DB_MTL")
-    # mv_gradvac = Series("../weights//VSRVC mv/GradVac 128/eval 128 12.json", "VSRVCv2 GradVac")
-
+    basic_shallow_series = Series([
+            "../weights//VSRVC basic shallow/128/eval 128 12.json",
+            "../weights//VSRVC basic shallow/256/eval 128 12.json",
+            "../weights//VSRVC basic shallow/384/eval 128 12.json",
+            "../weights//VSRVC basic shallow/512/eval 128 12.json",
+            "../weights//VSRVC basic shallow/640/eval 128 12.json",
+        ], "VSRVCv2 osobne Kompensatory Ruchu"
+    )
     basic_series = Series([
         "../weights//VSRVC basic/128/eval 128 12.json",
         "../weights//VSRVC basic/256/eval 128 12.json",
@@ -400,11 +388,28 @@ if __name__ == "__main__":
         "../weights//VC basic/512/eval 128 12.json",
         "../weights//VC basic/640/eval 128 12.json",
     ], "VCv2", vsr=False)
+    basic_series_dbmtl = Series([
+        "../weights//VSRVC basic/DB_MTL 128/eval 128 12.json",
+        "../weights//VSRVC basic/DB_MTL 256/eval 128 12.json",
+        "../weights//VSRVC basic/DB_MTL 384/eval 128 12.json",
+        "../weights//VSRVC basic/DB_MTL 512/eval 128 12.json",
+        "../weights//VSRVC basic/DB_MTL 640/eval 128 12.json",
+    ], "VSRVCv2 DB_MTL")
+    basic_series_gradvac = Series([
+        "../weights//VSRVC basic/GradVac 128/eval 128 12.json",
+        "../weights//VSRVC basic/GradVac 256/eval 128 12.json",
+        "../weights//VSRVC basic/GradVac 384/eval 128 12.json",
+        "../weights//VSRVC basic/GradVac 512/eval 128 12.json",
+        "../weights//VSRVC basic/GradVac 640/eval 128 12.json",
+    ], "VSRVCv2 GradVac")
+    basic_series_gradnorm = Series([
+        "../weights//VSRVC basic/GradNorm 128/eval 128 12.json",
+        "../weights//VSRVC basic/GradNorm 256/eval 128 12.json",
+        "../weights//VSRVC basic/GradNorm 384/eval 128 12.json",
+        "../weights//VSRVC basic/GradNorm 512/eval 128 12.json",
+        "../weights//VSRVC basic/GradNorm 640/eval 128 12.json",
+    ], "VSRVCv2 GradNorm")
     basic_only_vsr = Series("../weights//VSR basic/128/eval 128 12.json", "VSRv2", vc=False)
-    basic_gradnorm = Series("../weights//VSRVC basic/GradNorm 128/eval 128 12.json", "VSRVCv3 GradNorm")
-    basic_dbmtl = Series("../weights//VSRVC basic/DB_MTL 128/eval 128 12.json", "VSRVCv3 DB_MTL")
-    basic_gradvac = Series("../weights//VSRVC basic/GradVac 128/eval 128 12.json", "VSRVCv3 GradVac")
-    basic_pcgrad = Series("../weights//VSRVC basic/PCGrad 128/eval 128 12.json", "VSRVCv3 PCGrad")
 
     fvc_series = Series(["../weights//fvc-256.json",
                          "../weights//fvc-512.json",
@@ -422,22 +427,24 @@ if __name__ == "__main__":
     basic_vsr_pp = Series("../weights//basicvsr_plusplus_trained.json", "BasicVSR++", vc=False)
     iart = Series("../weights//iart_bd.json", "IART", vc=False)
 
-    series = [fvc_series, dcvc_fm_series, shallow_series_only_vc, shallow_series]  # VC
-    # series = [basic_vsr_pp, iart, basic_only_vsr, basic_series, shallow_only_vsr, shallow_series]  # VSR
+    series_vc = [fvc_series, dcvc_fm_series, basic_series, basic_series_only_vc,
+                 basic_series_dbmtl, basic_series_gradvac, basic_series_gradnorm]  # VC
+    series_vsr = [basic_vsr_pp, iart, basic_only_vsr, basic_series, basic_series_dbmtl, basic_series_gradvac,
+                  basic_series_gradnorm]  # VSR
     # series = [fvc_series, dcvc_fm_series, shallow_series, mv_series, basic_series]
     # series = [fvc_series, dcvc_fm_series, shallow_series_only_vc, shallow_series, basic_series_only_vc, basic_series]
     # series = [shallow_gradnorm, shallow_dbmtl, shallow_gradvac, shallow_series_only_vc, shallow_only_vsr, shallow_series]
     # series = [basic_series, basic_gradnorm, basic_dbmtl, basic_gradvac, shallow_ew, shallow_gradnorm, shallow_dbmtl, shallow_gradvac]
-    eval_files_vc = [s.series for s in series if s.vc]
-    legend_vc = [s.legend for s in series if s.vc]
-    eval_files_vsr = [s.series for s in series if s.vsr]
-    legend_vsr = [s.legend for s in series if s.vsr]
+    eval_files_vc = [s.series for s in series_vc if s.vc]
+    legend_vc = [s.legend for s in series_vc if s.vc]
+    eval_files_vsr = [s.series for s in series_vsr if s.vsr]
+    legend_vsr = [s.legend for s in series_vsr if s.vsr]
     metric = "psnr"
     plot_vc_multiple(eval_files_vc, database, metric="psnr", legend=legend_vc)
     plot_vc_multiple(eval_files_vc, database, metric="ssim", legend=legend_vc)
     plt.show()
     vcs = get_multiple_vc(eval_files_vc, database, metric)
-    write_vc_latex(vcs, legend_vc, -1)
+    write_vc_latex(vcs, legend_vc, 3)
     for i, data in enumerate(vcs):
         print(f"{legend_vc[i] + ':':<38} {data}")
 
