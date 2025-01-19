@@ -1,0 +1,10 @@
+^D:\CODE\DCVC\DCVC-FM\SRC\CPP\OPS\CMAKELISTS.TXT
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SD:/Code/DCVC/DCVC-FM/src/cpp -BD:/Code/DCVC/DCVC-FM/src/build --check-stamp-file D:/Code/DCVC/DCVC-FM/src/build/ops/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd

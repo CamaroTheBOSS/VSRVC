@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <CustomBuild Include="D:\Code\DCVC\DCVC-FM\src\build\3rdparty\pybind11\pybind11-download\CMakeFiles\222429612641fd42ef6cfb0e076590e8\generate.stamp.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="CMake Rules">
+      <UniqueIdentifier>{C6E7A06A-3818-3355-8CB1-A8F63FEE3E3E}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

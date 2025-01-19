@@ -1,0 +1,20 @@
+# CMake generation dependency list for this directory.
+C:/Program Files/CMake/share/cmake-3.24/Modules/CMakeCheckCompilerFlagCommonPatterns.cmake
+C:/Program Files/CMake/share/cmake-3.24/Modules/CMakeDependentOption.cmake
+C:/Program Files/CMake/share/cmake-3.24/Modules/CMakePackageConfigHelpers.cmake
+C:/Program Files/CMake/share/cmake-3.24/Modules/CMakeParseArguments.cmake
+C:/Program Files/CMake/share/cmake-3.24/Modules/CheckCXXCompilerFlag.cmake
+C:/Program Files/CMake/share/cmake-3.24/Modules/CheckCXXSourceCompiles.cmake
+C:/Program Files/CMake/share/cmake-3.24/Modules/FindPackageHandleStandardArgs.cmake
+C:/Program Files/CMake/share/cmake-3.24/Modules/FindPackageMessage.cmake
+C:/Program Files/CMake/share/cmake-3.24/Modules/FindPythonInterp.cmake
+C:/Program Files/CMake/share/cmake-3.24/Modules/GNUInstallDirs.cmake
+C:/Program Files/CMake/share/cmake-3.24/Modules/Internal/CheckCompilerFlag.cmake
+C:/Program Files/CMake/share/cmake-3.24/Modules/Internal/CheckFlagCommonConfig.cmake
+C:/Program Files/CMake/share/cmake-3.24/Modules/Internal/CheckSourceCompiles.cmake
+C:/Program Files/CMake/share/cmake-3.24/Modules/WriteBasicConfigVersionFile.cmake
+D:/Code/DCVC/DCVC-FM/src/build/3rdparty/pybind11/pybind11-src/CMakeLists.txt
+D:/Code/DCVC/DCVC-FM/src/build/3rdparty/pybind11/pybind11-src/tools/FindPythonLibsNew.cmake
+D:/Code/DCVC/DCVC-FM/src/build/3rdparty/pybind11/pybind11-src/tools/JoinPaths.cmake
+D:/Code/DCVC/DCVC-FM/src/build/3rdparty/pybind11/pybind11-src/tools/pybind11Common.cmake
+D:/Code/DCVC/DCVC-FM/src/build/3rdparty/pybind11/pybind11-src/tools/pybind11Tools.cmake
