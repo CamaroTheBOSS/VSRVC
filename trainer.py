@@ -61,7 +61,7 @@ class Trainer(nn.Module):
         self.augmentation = Augmentation(multi_input, scale, dataset_type, model_type)
 
     def augment_data(self, data, task=None):
-        return self.augmentation(data, task, training_mode=self.training)
+        return self.augmentation(data, task, training_mode=self.model.training)
 
     def _prepare_model(self, weighting, architecture, encoder_class, decoders):
 
@@ -331,7 +331,7 @@ class Trainer(nn.Module):
             if not self.multi_input:
                 for batch_index in range(test_batch):
                     test_inputs, test_gts = self._process_data(test_loader)
-                    # test_inputs, test_gts = self.augment_data(test_inputs)
+                    test_inputs, test_gts = self.augment_data(test_inputs)
                     test_preds = self.model(test_inputs)
                     self.meter.update(test_preds, test_gts)
                     self.logger.print(f"{batch_index + 1}/{test_batch}")
