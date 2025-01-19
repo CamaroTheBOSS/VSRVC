@@ -1,6 +1,7 @@
 
 .idea/
 *__pycache__*
+evaluate/camarotheboss-VSRVC*
 evaluate/vc_table.txt
 evaluate/vsr_table.txt
 examples/
