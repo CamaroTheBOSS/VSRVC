@@ -182,11 +182,11 @@ class Augmentation:
             if training_mode:
                 hqs = torch.stack([self.augmentation(vid) for vid in data])
                 lqs = torch.stack([self.resize(vid) for vid in hqs])
-                label = {"vc": lqs[:, 1:].clone() if self.model_type == "DCVC" else lqs[:, -1].clone(), "vsr": hqs[:, -1]}
+                label = {"vc": lqs[:, -1].clone(), "vsr": hqs[:, -1]}
                 return lqs, label
             hqs = data[:, :, :, :self.crop_size[0], :self.crop_size[1]]
             lqs = torch.stack([self.resize(vid) for vid in hqs])
-            label = {"vc": lqs[:, 1:].clone() if self.model_type == "DCVC" else lqs[:, -1].clone(), "vsr": hqs[:, -1]}
+            label = {"vc": lqs[:, -1].clone(), "vsr": hqs[:, -1]}
             return lqs, label
         else:
             if training_mode:

@@ -10,7 +10,7 @@ from metrics import CompressionTaskMetrics, RateDistortionLoss, QualityMetrics, 
     DynamicRateDistortionLoss, DynamicCompressionTaskMetrics
 import wandb
 from training_configs import vsrvc, vsrvc_motion_residual, vsrvc_shallow_encoder, vsrvc_basic, vsrvc_basic_shallow, \
-    dcvcfm
+    dcvcfm, fvc
 
 
 def parse_args(parser):
@@ -70,6 +70,8 @@ def main(params):
         f = vsrvc_basic_shallow
     elif params.model_type == "dcvc":
         f = dcvcfm
+    elif params.model_type == "fvc":
+        f = fvc
     else:
         raise ValueError("Unrecognized model_type. Supported ones are: vsrvc, vsrvc_res_mv, vsrvc_shallow, vsrvc_basic")
     train_set, test_set, encoder_class, decoders, kwargs, decoder_kwargs, model_type = f(params, kwargs)
@@ -105,10 +107,8 @@ def main(params):
     task_dict: Dict[str, dict] = {}
     if params.vc:
         task_dict["vc"] = {'metrics': ['psnr', 'ssim', 'bpp'],
-                           'metrics_fn': DynamicCompressionTaskMetrics()
-                           if params.model_type == "dcvc" else CompressionTaskMetrics(),
-                           'loss_fn': DynamicRateDistortionLoss(128, 640, 0, 64)
-                           if params.model_type == "dcvc" else RateDistortionLoss(params.lmbda),
+                           'metrics_fn': CompressionTaskMetrics(),
+                           'loss_fn': RateDistortionLoss(params.lmbda),
                            'weight': [1, 1, 0]}
     else:
         task_dict["vc"] = {'metrics': [], 'metrics_fn': DummyMetrics(), 'loss_fn': DummyLoss(), 'weight': []}

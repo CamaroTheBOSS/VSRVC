@@ -605,13 +605,7 @@ class DMC(CompressionModel):
             "ref_y": None,
             "ref_mv_y": None,
         }
-        bits, recon_frames = [], []
-        q_index = random.choice(self.q_indexes_i)
-        for idx in range(1, x.shape[1]):
-            frame = x[:, idx]
-            fa_idx = self.index_map[idx - 1]
-            result = self.encode(frame, dpb, q_index, fa_idx)
-            dpb = result["dpb"]
-            recon_frames.append(dpb["ref_frame"])
-            bits.append([result['bit'], 0, 0, 0])
-        return torch.stack(recon_frames, dim=1), bits, q_index
+        frame = x[:, 1]
+        result = self.encode(frame, dpb, 4, 0)
+        dpb = result["dpb"]
+        return dpb["ref_frame"], [result['bit'], 0, 0, 0]
